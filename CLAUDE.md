@@ -12,6 +12,32 @@ hand-editing `.copier-answers.yml`.
 The root `Project.toml` uses the `[workspace]` feature with `test/` and `docs/` as
 sub-projects, each with their own `Project.toml`.
 
+## Architecture
+
+The canonical design document is `archive/ppf_design.md` — read it before structural
+changes. The package is a method-agnostic probabilistic power flow framework; every
+sampling method uses the pipeline `u ∈ (0,1)^d → germ (copula + marginal quantiles) →
+physical injections (transforms) → PF solve (backend)`.
+
+Key seams (one file per concern in `src/`, flat includes):
+
+- **Backend contract** (`backend_interface.jl`): `init_state` / `set_injections!` /
+  `solve!` / `extract`. `solve!` returns a `SolveInfo` and must never throw on
+  divergence — failures are recorded as `FailedSample` outputs, never dropped.
+  `reference_backend.jl` (hand-rolled NR solver, no ecosystem deps) is the executable
+  documentation of this contract; ecosystem adapters (PowerModels etc.) are planned
+  as package extensions.
+- **Uncertainty model** (`uncertainty.jl`, `dependence.jl`, `transforms.jl`): the
+  copula always lives on the germ, never on transformed outputs. Correlation input is
+  Spearman by default; `:pearson` is rejected until the Nataf correction exists —
+  never silently reinterpret. Validation errors loudly (PSD checked after the
+  Spearman→Gaussian mapping, naming the offending eigenvalue).
+- **Methods** (`methods.jl`, `monte_carlo.jl`): subtypes of `AbstractPPFMethod`; they
+  draw `u` and call only `to_physical!`, so samplers and dependence structures
+  compose freely. `PPFResult.n_solves` counts every deterministic solve (the
+  benchmark cost currency).
+- `germ_dim` is deliberately not named `dim` (clashes with `Distributions.dim`).
+
 ## Commands
 
 ### Testing
