@@ -1,7 +1,12 @@
 using ProbabilisticPowerFlow
 using Documenter
 
-DocMeta.setdocmeta!(ProbabilisticPowerFlow, :DocTestSetup, :(using ProbabilisticPowerFlow); recursive = true)
+DocMeta.setdocmeta!(
+    ProbabilisticPowerFlow,
+    :DocTestSetup,
+    :(using ProbabilisticPowerFlow);
+    recursive = true,
+)
 
 # Add titles of sections and overrides page titles
 const titles = Dict(
@@ -9,7 +14,7 @@ const titles = Dict(
     "91-developer.md" => "Developer docs",
 )
 
-function recursively_list_pages(folder; path_prefix="")
+function recursively_list_pages(folder; path_prefix = "")
     pages_list = Any[]
     for file in readdir(folder)
         if file == "index.md"
@@ -23,15 +28,15 @@ function recursively_list_pages(folder; path_prefix="")
 
         if isdir(fullpath)
             # If this is a folder, enter the recursion case
-            subsection = recursively_list_pages(fullpath; path_prefix=relpath)
+            subsection = recursively_list_pages(fullpath; path_prefix = relpath)
 
             # Ignore empty folders
             if length(subsection) > 0
                 title = if haskey(titles, relpath)
-                titles[relpath]
+                    titles[relpath]
                 else
-                @error "Bad usage: '$relpath' does not have a title set. Fix in 'docs/make.jl'"
-                relpath
+                    @error "Bad usage: '$relpath' does not have a title set. Fix in 'docs/make.jl'"
+                    relpath
                 end
                 push!(pages_list, title => subsection)
             end
@@ -63,7 +68,9 @@ makedocs(;
     authors = "Stefan de Lange <langestefan@msn.com>",
     repo = "https://github.com/langestefan/ProbabilisticPowerFlow.jl/blob/{commit}{path}#{line}",
     sitename = "ProbabilisticPowerFlow.jl",
-    format = Documenter.HTML(; canonical = "https://langestefan.github.io/ProbabilisticPowerFlow.jl"),
+    format = Documenter.HTML(;
+        canonical = "https://langestefan.github.io/ProbabilisticPowerFlow.jl",
+    ),
     pages = list_pages(),
 )
 
