@@ -6,7 +6,7 @@ Plain Monte Carlo: `n` independent uniform draws through the
 
 Diverged samples land in `PPFResult.failures`.
 
-`:retry` does a re-solve with a robust fallback solver, and is reserved for when such a 
+`:retry` does a re-solve with a robust fallback solver, and is reserved for when such a
 backend exists.
 """
 Base.@kwdef struct MonteCarlo <: AbstractPPFMethod

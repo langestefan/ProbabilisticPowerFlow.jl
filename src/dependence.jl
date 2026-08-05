@@ -2,7 +2,7 @@
     AbstractDependence
 
 Dependence structure (copula) on the germ variables. The copula always lives on the
-germ, never on transformed outputs. 
+germ, never on transformed outputs.
 
 Subtypes implement `to_dependent!(v, dep, u)` mapping independent uniforms `u ∈ (0,1)^d`
 to dependent uniforms `v`, and `dependence_dim(dep)`, which returns the germ dimension
