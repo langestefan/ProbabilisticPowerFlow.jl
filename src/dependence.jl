@@ -49,7 +49,7 @@ according to `correlation`:
 requires an iterative Nataf correction per marginal family, which is not implemented
 yet, and silently reinterpreting the matrix is how benchmark results go wrong.
 
-Positive semi-definiteness is validated *after* the mapping; on failure the error
+Positive semi-definiteness is validated *after* the mapping. On failure the error
 names the offending eigenvalue. Projection to the nearest PSD matrix is never done
 silently.
 """
@@ -71,7 +71,7 @@ function GaussianCopula(R::AbstractMatrix{<:Real}; correlation::Symbol = :spearm
         throw(
             ArgumentError(
                 "correlation = :pearson requires the Nataf correction, which is not " *
-                "implemented; use :spearman or supply the copula parameter directly " *
+                "implemented. Use :spearman or supply the copula parameter directly " *
                 "via :gaussian",
             ),
         )
@@ -89,8 +89,8 @@ function GaussianCopula(R::AbstractMatrix{<:Real}; correlation::Symbol = :spearm
             ArgumentError(
                 "correlation matrix is not positive semi-definite after the " *
                 "$(correlation) → Gaussian-copula mapping: smallest eigenvalue is " *
-                "$(lambda_min); fix the input correlations (PSD projection is only " *
-                "available as an explicit opt-in, never silently)",
+                "$(lambda_min). Fix the input correlations. PSD projection is only " *
+                "available as an explicit opt-in, never silently.",
             ),
         )
     end

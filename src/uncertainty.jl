@@ -3,8 +3,8 @@
 
 A basic random variable of the germ, with a univariate distribution in its natural
 space, such as a wind speed in m/s or a relative load level. The germ is the finite
-set of basic random variables from which all uncertainty in the model is generated;
-everything downstream is a deterministic function of it.
+set of basic random variables from which all uncertainty in the model is generated.
+Everything downstream is a deterministic function of it.
 """
 struct GermVariable{D<:UnivariateDistribution}
     id::String

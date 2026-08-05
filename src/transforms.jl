@@ -1,13 +1,17 @@
 """
     AbstractTransform
 
-A deterministic map from a germ variable's value to a physical injection value.
+A deterministic map from a germ variable's value to a physical injection value. We need
+this to couple a random input to a physical injection in the units the backend expects,
+for example wind speed to wind power, or a load forecast to a load injection.
+
 Transforms are callable: `t(z) -> Float64`.
 
-The serialized-spec vocabulary (`power_curve`, `pv_model`, `clip`) and the
-`scale_base`/`add_base` assignment modes arrive together with the TOML loader; the
-base-value modes additionally need a `base_value(backend, ref)` contract function to
-read the pinned network's base values.
+The TOML loader will add the remaining transform functions: `power_curve`,
+`pv_model`, `clip`, and the `scale_base` and `add_base` assignment modes.
+
+The base modes need to read base values from the network, which requires a new function
+`base_value(backend, ref)`.
 """
 abstract type AbstractTransform end
 

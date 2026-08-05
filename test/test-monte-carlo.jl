@@ -81,7 +81,7 @@ end
     end
     @test mean(r, VoltageMagnitude(5)) < 1.0  # heavily loaded, depressed voltages
 
-    # The :retry policy is reserved, not implemented: loud error.
+    # The :retry policy is reserved and not implemented, so it must throw.
     @test_throws ArgumentError solve(
         PPFProblem(prob.backend, prob.model, prob.qois),
         MonteCarlo(n = 10, failure_policy = :retry),

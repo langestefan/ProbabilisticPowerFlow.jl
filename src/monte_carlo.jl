@@ -21,8 +21,8 @@ function solve(
 )
     method.failure_policy == :record || throw(
         ArgumentError(
-            "failure_policy $(repr(method.failure_policy)) is not implemented; " *
-            "only :record is available",
+            "failure_policy $(repr(method.failure_policy)) is not implemented. " *
+            "Only :record is available.",
         ),
     )
     model = prob.model

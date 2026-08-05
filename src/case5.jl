@@ -6,8 +6,8 @@ The Stagg & El-Abiad 5-bus test system (*Computer Methods in Power System Analys
 exercised: bus 1 slack at 1.06 pu, bus 2 PV at 1.04 pu with 0.40 pu generation,
 buses 3-5 PQ loads. All values per unit on a 100 MVA base.
 
-`load_scale` multiplies every load; large values push the case past its loadability
-limit, which tests genuinely exercise to produce diverged solves.
+`load_scale` multiplies every load. Large values push the case past its loadability
+limit, which tests use to produce genuinely diverged solves.
 """
 function case5(; load_scale::Real = 1.0)
     branches = [

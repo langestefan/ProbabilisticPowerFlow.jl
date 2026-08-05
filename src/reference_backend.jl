@@ -112,7 +112,7 @@ mutable struct RefState
     pq_idx::Vector{Int}                # buses with a Q equation / magnitude unknown
 end
 
-# Refs are resolved to internal slots once; a ref that does not exist in the network
+# Refs are resolved to internal slots once. A ref that does not exist in the network
 # throws. This check is the backend's half of the spec validation rules.
 function init_state(b::ReferenceBackend, refs::AbstractVector{ComponentRef})
     net = b.net
@@ -249,10 +249,10 @@ function jacobian(state::RefState, net::NetworkData)
     return J
 end
 
-# Demonstrates: `warmstart === nothing` resets to a deterministic flat start;
-# a previously solved RefState warm-starts the iteration; divergence returns
+# `warmstart === nothing` resets to a deterministic flat start. A previously solved
+# RefState warm-starts the iteration. Divergence returns
 # `SolveInfo(converged = false, ...)` and never throws, and the state remains
-# usable for the next (cold) solve.
+# usable for the next cold solve.
 function solve!(state::RefState, b::ReferenceBackend; warmstart = nothing)
     net = b.net
     if warmstart === nothing

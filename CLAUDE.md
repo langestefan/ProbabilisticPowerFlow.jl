@@ -15,7 +15,7 @@ sub-projects, each with their own `Project.toml`.
 ## Architecture
 
 The canonical design document is `archive/ppf_design.md` — read it before structural
-changes. The package is a method-agnostic probabilistic power flow framework; every
+changes. The package is a method-agnostic probabilistic power flow framework. Every
 sampling method uses the pipeline `u ∈ (0,1)^d → germ (copula + marginal quantiles) →
 physical injections (transforms) → PF solve (backend)`.
 
@@ -24,15 +24,15 @@ Key seams (one file per concern in `src/`, flat includes):
 - **Backend contract** (`backend_interface.jl`): `init_state` / `set_injections!` /
   `solve!` / `extract`. `solve!` returns a `SolveInfo` and must never throw on
   divergence — failures are recorded as `FailedSample` outputs, never dropped.
-  `reference_backend.jl` (hand-rolled NR solver, no ecosystem deps) is the executable
-  documentation of this contract; ecosystem adapters (PowerModels etc.) are planned
-  as package extensions.
+  `reference_backend.jl` is a hand-rolled NR solver with no ecosystem deps and serves
+  as the executable documentation of this contract. Ecosystem adapters such as
+  PowerModels are planned as package extensions.
 - **Uncertainty model** (`uncertainty.jl`, `dependence.jl`, `transforms.jl`): the
   copula always lives on the germ, never on transformed outputs. Correlation input is
-  Spearman by default; `:pearson` is rejected until the Nataf correction exists —
+  Spearman by default. `:pearson` is rejected until the Nataf correction exists —
   never silently reinterpret. Validation throws descriptive errors: PSD is checked
   after the Spearman→Gaussian mapping, and the error names the offending eigenvalue.
-- **Methods** (`methods.jl`, `monte_carlo.jl`): subtypes of `AbstractPPFMethod`; they
+- **Methods** (`methods.jl`, `monte_carlo.jl`): subtypes of `AbstractPPFMethod`. They
   draw `u` and call only `to_physical!`, so samplers and dependence structures
   compose freely. `PPFResult.n_solves` counts every deterministic solve and is the
   benchmark cost currency.
@@ -48,9 +48,9 @@ julia --project=. -e 'using Pkg; Pkg.test()'
 ```
 
 Tests use TestItemRunner/TestItems, not plain `@testset` files. `test/runtests.jl` just
-calls `@run_package_tests`; actual tests live in `test/test-*.jl` files as `@testitem`
-blocks (with `@testsnippet` / `@testmodule` for shared setup, and tags like
-`:unit`, `:fast`, `:integration`). To run a subset by tag:
+calls `@run_package_tests`. Actual tests live in `test/test-*.jl` files as `@testitem`
+blocks, with `@testsnippet` / `@testmodule` for shared setup, and tags like
+`:unit`, `:fast`, `:integration`. To run a subset by tag:
 
 ```bash
 julia --project=test -e 'using TestItemRunner; @run_package_tests filter=ti->(:unit in ti.tags)'
