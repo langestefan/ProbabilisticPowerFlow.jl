@@ -25,8 +25,15 @@ Key seams (one file per concern in `src/`, flat includes):
   `solve!` / `extract`. `solve!` returns a `SolveInfo` and must never throw on
   divergence — failures are recorded as `FailedSample` outputs, never dropped.
   `reference_backend.jl` is a hand-rolled NR solver with no ecosystem deps and serves
-  as the executable documentation of this contract. Ecosystem adapters such as
-  PowerModels are planned as package extensions.
+  as the executable documentation of this contract. Ecosystem adapters live under
+  `ext/` as package extensions. Extensions cannot export new names, so the core
+  module declares an empty stub function per adapter, for example
+  `PowerModelsBackend`, and the extension attaches the constructor method.
+  `PPFPowerModelsExt` calls the internal `PowerModels._compute_ac_pf` to get
+  iterations and residual, which is why `[compat]` pins `PowerModels = "0.21"` —
+  re-verify before widening. Copier-managed `TestOnPRs.yml` path filters do not
+  include `ext/**`, so a PR touching only `ext/` skips PR CI. Do not hand-edit the
+  workflow; the Test.yml run on merge to main covers it.
 - **Uncertainty model** (`uncertainty.jl`, `dependence.jl`, `transforms.jl`): the
   copula always lives on the germ, never on transformed outputs. Correlation input is
   Spearman by default. `:pearson` is rejected until the Nataf correction exists —
@@ -53,8 +60,11 @@ blocks, with `@testsnippet` / `@testmodule` for shared setup, and tags like
 `:unit`, `:fast`, `:integration`. To run a subset by tag:
 
 ```bash
-julia --project=test -e 'using TestItemRunner; @run_package_tests filter=ti->(:unit in ti.tags)'
+cd test && julia --project=. -e 'using TestItemRunner; @run_package_tests filter=ti->(:unit in ti.tags)'
 ```
+
+Run this from inside `test/`. Test discovery is cwd-sensitive, and running from the
+repo root makes it scan sibling repositories in the parent folder.
 
 New test files must follow the `test/test-*.jl` naming pattern to be picked up.
 

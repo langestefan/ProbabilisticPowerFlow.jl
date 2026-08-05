@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning].
 
 ## [Unreleased]
 
+- PowerModels.jl backend adapter: `PowerModelsBackend` builds from a PowerModels
+  network data dictionary and solves with the native sparse Newton AC power flow.
+  Ships as the package extension `PPFPowerModelsExt`, loaded with
+  `using PowerModels`. Supports warm starts and records divergence as data
 - Initial release
 - Core interface: backend contract (`init_state`, `set_injections!`, `solve!`,
   `extract`, optional `linearize`/`supports_warmstart`), quantities of interest with
