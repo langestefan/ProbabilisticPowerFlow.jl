@@ -62,4 +62,25 @@ export qoi_samples, violation_probability
 # Reference backend
 export NetworkData, Branch, build_ybus, ReferenceBackend, case5
 
+# Extension backend stubs. The constructors live in package extensions, which
+# cannot export new names, so the empty functions are declared here.
+
+"""
+    PowerModelsBackend(data::AbstractDict; tol = 1e-8, maxiter = 100)
+
+AC power flow backend on a PowerModels.jl network data dictionary, for example the
+result of `PowerModels.parse_file`. The solver is PowerModels' native Newton method
+on a sparse admittance matrix.
+
+The constructor lives in the `PPFPowerModelsExt` package extension, so it is only
+available after `using PowerModels`. Without PowerModels loaded, calling this
+function throws a `MethodError`.
+
+`tol` is the tolerance on the infinity-norm of the power mismatch. `maxiter` is the
+solver iteration limit.
+"""
+function PowerModelsBackend end
+
+export PowerModelsBackend
+
 end
