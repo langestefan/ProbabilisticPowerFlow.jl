@@ -17,8 +17,8 @@ Branch(f::Int, t::Int, r::Real, x::Real, b_total::Real) =
 """
     build_ybus(n, branches)
 
-Dense bus admittance matrix of the π-model branches (kept as a separate pure
-function so tests can spot-check entries independently of the solver).
+Build the dense bus admittance matrix from the π-model branches. Tests check
+entries of this matrix directly, without running the solver.
 """
 function build_ybus(n::Int, branches::AbstractVector{Branch})
     Y = zeros(ComplexF64, n, n)
@@ -112,8 +112,8 @@ mutable struct RefState
     pq_idx::Vector{Int}                # buses with a Q equation / magnitude unknown
 end
 
-# Demonstrates: refs are resolved to internal slots ONCE, and unresolvable refs
-# error loudly (the backend's half of the spec validation rules).
+# Refs are resolved to internal slots once; a ref that does not exist in the network
+# throws. This check is the backend's half of the spec validation rules.
 function init_state(b::ReferenceBackend, refs::AbstractVector{ComponentRef})
     net = b.net
     slots = Vector{Tuple{Symbol,Int}}(undef, length(refs))

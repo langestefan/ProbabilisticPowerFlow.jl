@@ -2,9 +2,12 @@
     MonteCarlo(; n = 1000, failure_policy = :record)
 
 Plain Monte Carlo: `n` independent uniform draws through the
-`u → germ → injections → solve` pipeline. `failure_policy` is `:record` (diverged
-samples land in `PPFResult.failures`); `:retry` (re-solve with a robust fallback
-solver) is reserved for when such a backend exists.
+`u → germ → injections → solve` pipeline. `failure_policy` is `:record`.
+
+Diverged samples land in `PPFResult.failures`.
+
+`:retry` does a re-solve with a robust fallback solver, and is reserved for when such a 
+backend exists.
 """
 Base.@kwdef struct MonteCarlo <: AbstractPPFMethod
     n::Int = 1000

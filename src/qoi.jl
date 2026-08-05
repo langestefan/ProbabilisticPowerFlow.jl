@@ -38,10 +38,10 @@ end
 """
     ViolationEvent(qoi, lo, hi)
 
-Indicator QoI: 1.0 when `qoi` falls outside `[lo, hi]`, 0.0 otherwise. A first-class
-QoI (not post-processing) so that rare-event methods (importance sampling, subset
-simulation) can dispatch on it and target the event. Its Monte Carlo mean is the
-violation probability.
+Indicator QoI: 1.0 when `qoi` falls outside `[lo, hi]`, 0.0 otherwise. It is a
+first-class QoI rather than post-processing, so that rare-event methods such as
+importance sampling and subset simulation can dispatch on it and target the event.
+Its Monte Carlo mean is the violation probability.
 """
 struct ViolationEvent{Q<:AbstractQoI} <: AbstractQoI
     qoi::Q

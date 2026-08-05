@@ -30,13 +30,14 @@ Key seams (one file per concern in `src/`, flat includes):
 - **Uncertainty model** (`uncertainty.jl`, `dependence.jl`, `transforms.jl`): the
   copula always lives on the germ, never on transformed outputs. Correlation input is
   Spearman by default; `:pearson` is rejected until the Nataf correction exists —
-  never silently reinterpret. Validation errors loudly (PSD checked after the
-  Spearman→Gaussian mapping, naming the offending eigenvalue).
+  never silently reinterpret. Validation throws descriptive errors: PSD is checked
+  after the Spearman→Gaussian mapping, and the error names the offending eigenvalue.
 - **Methods** (`methods.jl`, `monte_carlo.jl`): subtypes of `AbstractPPFMethod`; they
   draw `u` and call only `to_physical!`, so samplers and dependence structures
-  compose freely. `PPFResult.n_solves` counts every deterministic solve (the
-  benchmark cost currency).
-- `germ_dim` is deliberately not named `dim` (clashes with `Distributions.dim`).
+  compose freely. `PPFResult.n_solves` counts every deterministic solve and is the
+  benchmark cost currency.
+- `germ_dim` is deliberately not named `dim`, which would clash with
+  `Distributions.dim`.
 
 ## Commands
 

@@ -3,8 +3,8 @@
 
 Reference to a scalar quantity on a network component, e.g.
 `ComponentRef(:load, "3", :pd)`. `kind` is `:load`, `:gen` or `:bus`; `id` is the
-component identifier as a string (so it round-trips with the serialized uncertainty
-spec); `field` names the injected quantity (`:pd`, `:qd`, `:pg`, ...).
+component identifier, kept as a string so it round-trips with the serialized
+uncertainty spec; `field` names the injected quantity: `:pd`, `:qd`, `:pg`, ...
 """
 struct ComponentRef
     kind::Symbol
@@ -37,8 +37,8 @@ A deterministic power flow solver backend. Required contract:
 
 Optional:
 
-  - `supports_warmstart(backend) -> Bool` (defaults to `false`)
-  - `linearize(backend, x0) -> (y0, S)` (unlocks cumulant/PEM methods)
+  - `supports_warmstart(backend) -> Bool`, default `false`
+  - `linearize(backend, x0) -> (y0, S)`, which unlocks cumulant/PEM methods
 
 See `ReferenceBackend` for an executable example of the contract. Ecosystem adapters
 (PowerModels, PowerFlows, OpenDSSDirect) are added later as package extensions; the
@@ -52,7 +52,7 @@ abstract type AbstractBackend end
 
 Allocate and return a mutable solver state. The backend resolves each `ComponentRef`
 to an internal slot once, so that `set_injections!` is an allocation-free write per
-sample. Must error loudly on a ref that does not exist in the network.
+sample. Must error on a ref that does not exist in the network.
 """
 function init_state end
 
@@ -60,8 +60,8 @@ function init_state end
     set_injections!(state, backend::AbstractBackend, x::AbstractVector{<:Real}) -> state
 
 Write the physical injection vector `x` into the state. `x` is ordered as the `refs`
-passed to [`init_state`](@ref) (which equals the assignment order of the
-`UncertaintyModel`).
+passed to [`init_state`](@ref); this equals the assignment order of the
+`UncertaintyModel`.
 """
 function set_injections! end
 
@@ -69,7 +69,7 @@ function set_injections! end
     solve!(state, backend::AbstractBackend; warmstart = nothing) -> SolveInfo
 
 Run a deterministic power flow solve on `state`. With `warmstart === nothing` the
-backend must reset to a deterministic initial point (e.g. flat start); otherwise
+backend must reset to a deterministic initial point such as a flat start; otherwise
 `warmstart` is a previously solved state of the same backend. Must be restartable
 after a failed solve, and must return a `SolveInfo` rather than throw on divergence.
 """
@@ -94,7 +94,7 @@ supports_warmstart(::AbstractBackend) = false
     linearize(backend::AbstractBackend, x0) -> (y0, S)
 
 Optional: sensitivity of the QoIs around the injection point `x0`. No methods exist
-in the core yet; analytical methods (cumulant, PEM) will use it, with a
+in the core yet; the analytical methods cumulant and PEM will use it, with a
 finite-difference fallback for backends that do not implement it.
 """
 function linearize end

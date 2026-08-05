@@ -2,8 +2,8 @@
     GermVariable(id, dist)
 
 A basic random variable of the germ, with a univariate distribution in its natural
-space (wind speed in m/s, relative load level, ...). The germ is the finite set of
-basic random variables from which all uncertainty in the model is generated;
+space, such as a wind speed in m/s or a relative load level. The germ is the finite
+set of basic random variables from which all uncertainty in the model is generated;
 everything downstream is a deterministic function of it.
 """
 struct GermVariable{D<:UnivariateDistribution}
@@ -17,8 +17,8 @@ end
 How a germ variable lands on a network component: the germ value of `variable` (a
 `GermVariable` id) is passed through `transform` and written to `target`. Several
 assignments may reference one germ variable — sharing a variable expresses perfectly
-coupled quantities (e.g. P and Q of a constant-power-factor load) without degenerate
-correlation entries.
+coupled quantities, such as P and Q of a constant-power-factor load, without
+degenerate correlation entries.
 """
 struct Assignment{T<:AbstractTransform}
     variable::String
@@ -37,7 +37,8 @@ a copula on the germ. Validates on construction:
 
   - every assignment references a declared germ variable,
   - every germ variable is referenced by at least one assignment,
-  - the dependence dimension (if any) equals the number of germ variables.
+  - the dependence dimension, when the copula declares one, equals the number of
+    germ variables.
 
 Component existence in the network is the backend's half of the validation, enforced
 by [`init_state`](@ref).
@@ -96,7 +97,7 @@ end
     germ_dim(m::UncertaintyModel)
 
 Number of germ variables `d` — the dimension of the samplers' `u ∈ (0,1)^d` space.
-(Not named `dim` to avoid clashing with `Distributions.dim`.)
+The name avoids a clash with `Distributions.dim`.
 """
 germ_dim(m::UncertaintyModel) = length(m.variables)
 
@@ -111,9 +112,15 @@ targets(m::UncertaintyModel) = [a.target for a in m.assignments]
 """
     to_physical!(x, m::UncertaintyModel, u, germ) -> x
 
-The pipeline every sampling method uses:
+Map one sample of independent uniforms `u ∈ (0,1)^d` to the physical injection
+vector `x`. This is the pipeline every sampling method uses. It consists of three steps:
 
-    u ∈ (0,1)^d → germ (copula + marginal quantiles) → physical injections x
+ 1. [`to_dependent!`](@ref) applies the copula: `u` becomes dependent uniforms
+    whose ranks carry the correlation structure.
+ 2. Each variable's marginal quantile function turns its dependent uniform into
+    a value with that variable's distribution; the result is the germ.
+ 3. Each assignment's transform maps its germ value to a physical injection
+    `x[j]`, in assignment order.
 
 Only `u` is random; everything here is deterministic, so equal `u` gives equal `x`.
 `germ` is a length-`germ_dim(m)` work buffer, `x` a length-`length(m.assignments)`

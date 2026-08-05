@@ -19,7 +19,7 @@ end
 Output of a sampling method. Fields:
 
   - `method`: the method that produced the result.
-  - `qois`: the estimated quantities of interest (row order of `samples`).
+  - `qois`: the estimated quantities of interest, in the row order of `samples`.
   - `samples`: `(n_qois × n_converged)` matrix of QoI values, converged samples
     only — statistics never accidentally include failures.
   - `sample_indices`: column `j` of `samples` came from original sample
