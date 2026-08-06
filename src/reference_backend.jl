@@ -31,6 +31,11 @@ function build_ybus(n::Int, branches::AbstractVector{Branch})
     return Y
 end
 
+# Bus type codes follow the MATPOWER convention: 1 is PQ, 2 is PV, 3 is the slack.
+is_pq_bus(t::Integer) = t == 1
+is_pv_bus(t::Integer) = t == 2
+is_slack_bus(t::Integer) = t == 3
+
 """
     NetworkData(bustype, pd, qd, pg, vm_setpoint, branches)
 
@@ -61,7 +66,8 @@ function NetworkData(
     n = length(bustype)
     all(t -> t in (1, 2, 3), bustype) ||
         throw(ArgumentError("bustype entries must be 1 (PQ), 2 (PV) or 3 (slack)"))
-    count(==(3), bustype) == 1 || throw(ArgumentError("exactly one slack bus is required"))
+    count(is_slack_bus, bustype) == 1 ||
+        throw(ArgumentError("exactly one slack bus is required"))
     length(pd) == length(qd) == length(pg) == length(vm_setpoint) == n ||
         throw(DimensionMismatch("bus data vectors must all have length $(n)"))
     all(br -> 1 <= br.f <= n && 1 <= br.t <= n, branches) ||
@@ -134,7 +140,7 @@ function init_state(b::ReferenceBackend, refs::AbstractVector{ComponentRef})
                 ),
             )
         end
-        if net.bustype[bus] == 3
+        if is_slack_bus(net.bustype[bus])
             throw(
                 ArgumentError(
                     "cannot assign an injection at slack bus $(bus): the slack " *
@@ -142,7 +148,7 @@ function init_state(b::ReferenceBackend, refs::AbstractVector{ComponentRef})
                 ),
             )
         end
-        if field == :qd && net.bustype[bus] == 2
+        if field == :qd && is_pv_bus(net.bustype[bus])
             throw(
                 ArgumentError(
                     "cannot assign reactive load at PV bus $(bus): its reactive " *
@@ -152,8 +158,8 @@ function init_state(b::ReferenceBackend, refs::AbstractVector{ComponentRef})
         end
         slots[j] = (field, bus)
     end
-    ang_idx = findall(t -> t != 3, net.bustype)
-    pq_idx = findall(==(1), net.bustype)
+    ang_idx = findall(!is_slack_bus, net.bustype)
+    pq_idx = findall(is_pq_bus, net.bustype)
     return RefState(
         copy(net.vm_setpoint),
         zeros(net.n),
@@ -258,7 +264,7 @@ function solve!(state::RefState, b::ReferenceBackend; warmstart = nothing)
     if warmstart === nothing
         @inbounds for i = 1:net.n
             state.va[i] = 0.0
-            state.vm[i] = net.bustype[i] == 1 ? 1.0 : net.vm_setpoint[i]
+            state.vm[i] = is_pq_bus(net.bustype[i]) ? 1.0 : net.vm_setpoint[i]
         end
     else
         warmstart isa RefState ||
