@@ -33,21 +33,21 @@ Assignment(variable::AbstractString, target::ComponentRef) =
     UncertaintyModel(variables, assignments, dependence)
 
 The full uncertainty description: germ variables, assignments onto the network, and
-a copula on the germ. Validates on construction:
+a copula on the germ. The dependence slot accepts the built-in structures and any
+foreign type whose package implements [`to_dependent!`](@ref) and
+[`dependence_dim`](@ref) for it, for example a copula from Copulas.jl after
+`using Copulas`. Validates on construction:
 
   - every assignment references a declared germ variable,
   - every germ variable is referenced by at least one assignment,
+  - the dependence type implements the dependence interface,
   - the dependence dimension, when the copula declares one, equals the number of
     germ variables.
 
 Component existence in the network is the backend's half of the validation, enforced
 by [`init_state`](@ref).
 """
-struct UncertaintyModel{
-    C<:AbstractDependence,
-    V<:AbstractVector{<:GermVariable},
-    A<:AbstractVector{<:Assignment},
-}
+struct UncertaintyModel{C,V<:AbstractVector{<:GermVariable},A<:AbstractVector{<:Assignment}}
     variables::V
     assignments::A
     dependence::C
@@ -57,7 +57,7 @@ struct UncertaintyModel{
         variables::AbstractVector{<:GermVariable},
         assignments::AbstractVector{<:Assignment},
         dependence::C,
-    ) where {C<:AbstractDependence}
+    ) where {C}
         ids = [v.id for v in variables]
         length(unique(ids)) == length(ids) ||
             throw(ArgumentError("duplicate germ variable ids: $(ids)"))
@@ -78,6 +78,18 @@ struct UncertaintyModel{
         if !all(referenced)
             unused = ids[.!referenced]
             throw(ArgumentError("germ variables referenced by no assignment: $(unused)"))
+        end
+        # duck-typed dependence seam: a foreign type works when its package
+        # implements the two interface functions, so a missing implementation
+        # must fail here with a pointer, not with a bare MethodError later
+        if !hasmethod(dependence_dim, Tuple{C})
+            throw(
+                ArgumentError(
+                    "$(C) does not implement the dependence interface " *
+                    "(dependence_dim and to_dependent!). For a Copulas.jl copula, " *
+                    "run `using Copulas` first.",
+                ),
+            )
         end
         d = dependence_dim(dependence)
         if d !== nothing && d != length(variables)

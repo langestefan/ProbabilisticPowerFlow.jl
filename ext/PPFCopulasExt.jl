@@ -3,14 +3,18 @@ module PPFCopulasExt
 import Copulas
 import ProbabilisticPowerFlow as PPF
 
-PPF.dependence_dim(dep::PPF.CopulaDependence{<:Copulas.Copula}) = length(dep.copula)
+# Any Copulas.jl copula works directly as the dependence of an UncertaintyModel.
+# The extension only adds methods to the two duck-typed seam functions for the
+# foreign type. No wrapper exists and core carries no Copulas-specific code.
+
+PPF.dependence_dim(C::Copulas.Copula) = length(C)
 
 function PPF.to_dependent!(
     v::AbstractVector{Float64},
-    dep::PPF.CopulaDependence{<:Copulas.Copula},
+    C::Copulas.Copula,
     u::AbstractVector{<:Real},
 )
-    w = Copulas.inverse_rosenblatt(dep.copula, u)
+    w = Copulas.inverse_rosenblatt(C, u)
     # The clamp is mandatory. Archimedean families return exactly 0.0 or Inf at
     # extreme inputs and the empirical copula can return exactly 1.0, while the
     # marginal quantiles in step 2 of to_physical! must stay finite. clamp maps

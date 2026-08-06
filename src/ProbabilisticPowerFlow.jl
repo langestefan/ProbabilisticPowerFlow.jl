@@ -54,8 +54,7 @@ export AbstractQoI, VoltageMagnitude, VoltageAngle, BranchActivePower, Violation
 
 # Uncertainty model
 export AbstractTransform, IdentityTransform, AffineTransform
-export AbstractDependence,
-    IndependentCopula, GaussianCopula, CopulaDependence, spearman_to_gaussian
+export AbstractDependence, IndependentCopula, GaussianCopula, spearman_to_gaussian
 export GermVariable, Assignment, UncertaintyModel, germ_dim, targets
 export to_physical, to_physical!
 
