@@ -8,8 +8,9 @@ Subtypes implement `to_dependent!(v, dep, u)` mapping independent uniforms `u âˆ
 to dependent uniforms `v`, and `dependence_dim(dep)`, which returns the germ dimension
 `d`, or `nothing` when the structure is dimension-agnostic.
 
-Future subtypes slot in here without touching any sampler: a t-copula, a
-Copulas.jl wrapper, and a Nataf-corrected Gaussian copula for Pearson targets.
+Beyond the built-in [`IndependentCopula`](@ref) and [`GaussianCopula`](@ref), any
+copula family from Copulas.jl slots in through [`CopulaDependence`](@ref). The
+remaining future subtype is a Nataf-corrected Gaussian copula for Pearson targets.
 """
 abstract type AbstractDependence end
 
@@ -124,3 +125,52 @@ function to_dependent!(
     end
     return v
 end
+
+"""
+    CopulaDependence(copula)
+
+Dependence structure wrapping any copula from Copulas.jl, for example a Clayton,
+Gumbel, Frank, t, or empirical copula. The map from independent to dependent
+uniforms is the deterministic inverse Rosenblatt transform, so every sampling
+method composes, including the quasi-Monte Carlo ones, and failed samples replay
+exactly.
+
+The copula parameter means whatever Copulas.jl defines for the family. It is not
+Spearman-mapped like the built-in [`GaussianCopula`](@ref). For plain Gaussian
+dependence prefer the built-in, which caches its Cholesky factor. Copulas.jl also
+exports names `GaussianCopula` and `IndependentCopula`, so qualify those names
+when both packages are loaded.
+
+The implementation lives in the `PPFCopulasExt` package extension and needs
+`using Copulas`. Without the Copulas package loaded, using the wrapper throws a
+descriptive error.
+"""
+struct CopulaDependence{S} <: AbstractDependence
+    copula::S
+end
+
+function _copulas_ext_hint(dep::CopulaDependence)
+    ext = Base.get_extension(@__MODULE__, :PPFCopulasExt)
+    ext === nothing &&
+        return "the Copulas package is not loaded. Run `using Copulas` first"
+    return "the wrapped object is a $(typeof(dep.copula)), not a Copulas.Copula"
+end
+
+# The extension defines strictly more specific methods for
+# CopulaDependence{<:Copulas.Copula}, which win dispatch whenever Copulas is
+# loaded. These fallbacks are the error path only. dependence_dim runs at
+# UncertaintyModel construction, so a missing extension fails early, never at
+# the first sample.
+dependence_dim(dep::CopulaDependence) = throw(
+    ArgumentError("CopulaDependence needs a copula from Copulas.jl: " *
+                  _copulas_ext_hint(dep)),
+)
+
+to_dependent!(
+    v::AbstractVector{Float64},
+    dep::CopulaDependence,
+    u::AbstractVector{<:Real},
+) = throw(
+    ArgumentError("CopulaDependence needs a copula from Copulas.jl: " *
+                  _copulas_ext_hint(dep)),
+)

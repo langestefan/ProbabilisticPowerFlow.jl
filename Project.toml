@@ -13,16 +13,19 @@ Random = "9a3f8284-a2c9-5f02-9a11-845980a1fd5c"
 Statistics = "10745b16-79ce-11e8-11f9-7d13ad32a3b2"
 
 [weakdeps]
+Copulas = "ae264745-0b69-425e-9d9d-cf662c5eec93"
 PowerModels = "c36e90e8-916a-50a6-bd94-075b64ef4655"
 QuasiMonteCarlo = "8a4e6c94-4038-4cdc-81c3-7e6ffdb2a71b"
 Sobol = "ed01d8cd-4d21-5b2a-85b4-cc3bdc58bad4"
 
 [extensions]
+PPFCopulasExt = "Copulas"
 PPFPowerModelsExt = "PowerModels"
 PPFQuasiMonteCarloExt = "QuasiMonteCarlo"
 PPFSobolExt = "Sobol"
 
 [compat]
+Copulas = "0.1.33"
 Distributions = "0.25"
 LinearAlgebra = "1.10"
 PowerModels = "0.21"

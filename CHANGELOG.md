@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning].
 
 ## [Unreleased]
 
+- Copulas.jl adapter: `CopulaDependence` wraps any copula from Copulas.jl as the
+  germ dependence structure via the deterministic inverse Rosenblatt transform,
+  so Clayton, Gumbel, Frank, t, and empirical copulas compose with every
+  sampling method including QMC. Ships as the package extension `PPFCopulasExt`,
+  loaded with `using Copulas`. The compat floor is 0.1.33 because newer Copulas
+  and PowerModels currently cannot share an environment through the
+  NLSolversBase 7 versus 8 split
 - `keep_inputs` option on every sampling method: with `keep_inputs = true` the
   u-space points of the converged samples are stored in `PPFResult.u`, aligned
   with the sample columns, so estimates can be post-processed against their
