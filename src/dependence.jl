@@ -14,6 +14,15 @@ Copulas.jl wrapper, and a Nataf-corrected Gaussian copula for Pearson targets.
 abstract type AbstractDependence end
 
 """
+    to_dependent!(v, dep, u) -> v
+
+Apply the dependence structure `dep`: map independent uniforms `u ∈ (0,1)^d` to
+dependent uniforms `v` whose ranks carry the correlation of `dep`. Each entry of `v`
+stays uniform on `(0,1)`. This is step 1 of [`to_physical!`](@ref).
+"""
+function to_dependent! end
+
+"""
     IndependentCopula()
 
 Independent germ variables; `to_dependent!` is the identity.

@@ -30,4 +30,4 @@ and this project adheres to [Semantic Versioning].
 
 <!-- Versions -->
 
-[unreleased]: https://github.com/langestefan/ProbabilisticPowerFlow.jl/compare/v0.1.0...HEAD
+[unreleased]: https://github.com/langestefan/ProbabilisticPowerFlow.jl/commits/main/
