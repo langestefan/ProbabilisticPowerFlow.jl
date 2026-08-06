@@ -11,6 +11,13 @@ sampler and give it an rng to make the point set reproducible, for example
 The `rng` keyword of [`solve`](@ref) does not affect the points. Owen scrambling
 in base 2 requires a power-of-2 sample count.
 
+A sampler also passes directly into `solve`, with the configuration as keywords:
+
+    solve(prob, SobolSample(); n = 1024, warmstart = :chain)
+
+This is equivalent to wrapping it in `QMCSampling` and the result records the
+full configuration either way.
+
 The implementation lives in the `PPFQuasiMonteCarloExt` package extension and
 needs `using QuasiMonteCarlo`. [`SobolSampling`](@ref) stays the light default for
 a shifted Sobol sequence without the extra dependencies.

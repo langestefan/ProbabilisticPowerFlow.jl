@@ -2,6 +2,22 @@ module PPFQuasiMonteCarloExt
 
 import QuasiMonteCarlo as QMC
 import ProbabilisticPowerFlow as PPF
+import Random
+
+# A QuasiMonteCarlo sampler passes directly into solve, the way foreign types
+# are meant to work with extensions. The kwargs carry the run configuration the
+# sampler itself does not hold. Internally this builds the QMCSampling record,
+# so PPFResult.method still documents the full configuration of the run.
+function PPF.solve(
+    prob::PPF.PPFProblem,
+    sampler::QMC.SamplingAlgorithm;
+    n::Integer = 1000,
+    warmstart::Symbol = :off,
+    keep_inputs::Bool = false,
+    rng::Random.AbstractRNG = Random.default_rng(),
+)
+    return PPF.solve(prob, PPF.QMCSampling(sampler; n, warmstart, keep_inputs); rng)
+end
 
 # The sampler owns its point set and randomization, so no rng is threaded
 # through. Points are clamped away from 0 and 1 because unrandomized sequences

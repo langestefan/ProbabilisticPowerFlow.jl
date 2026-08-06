@@ -16,6 +16,10 @@ and this project adheres to [Semantic Versioning].
   types. The compat floor is 0.1.33 because newer Copulas and PowerModels
   currently cannot share an environment through the NLSolversBase 7 versus 8
   split
+- A QuasiMonteCarlo.jl sampler passes directly into `solve`, with the run
+  configuration as keywords: `solve(prob, SobolSample(); n = 1024)`. Equivalent
+  to wrapping it in `QMCSampling`, and the result records the full configuration
+  either way
 - `keep_inputs` option on every sampling method: with `keep_inputs = true` the
   u-space points of the converged samples are stored in `PPFResult.u`, aligned
   with the sample columns, so estimates can be post-processed against their

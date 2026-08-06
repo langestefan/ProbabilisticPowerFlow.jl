@@ -165,3 +165,23 @@ end
     @test !isempty(rh.failures)
     @test size(rh.u, 2) == n_converged(rh)
 end
+
+@testitem "a QuasiMonteCarlo sampler passes directly into solve" tags = [:integration] setup =
+    [MCSetup] begin
+    using QuasiMonteCarlo
+
+    prob = case5_problem()
+
+    # the direct form and the wrapped form are the same run
+    r_direct = solve(prob, SobolSample(); n = 400)
+    r_wrapped = solve(prob, QMCSampling(SobolSample(); n = 400))
+    @test r_direct.samples == r_wrapped.samples
+    @test r_direct.method isa QMCSampling
+    @test r_direct.method.n == 400
+
+    # the keywords carry the full configuration
+    r = solve(prob, SobolSample(); n = 128, warmstart = :chain, keep_inputs = true)
+    @test r.n_solves == 128
+    @test size(r.u) == (3, n_converged(r))
+    @test_throws ArgumentError solve(prob, SobolSample(); n = 10, warmstart = :backwards)
+end
