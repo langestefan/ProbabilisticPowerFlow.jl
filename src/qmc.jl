@@ -1,5 +1,5 @@
 """
-    QMCSampling(sampler; n = 1000, warmstart = :off)
+    QMCSampling(sampler; n = 1000, warmstart = :off, keep_inputs = false)
 
 Quasi-Monte Carlo sampling with any point-set generator from QuasiMonteCarlo.jl,
 for example `SobolSample`, `HaltonSample`, or `LatticeRuleSample`. Randomization
@@ -15,16 +15,17 @@ The implementation lives in the `PPFQuasiMonteCarloExt` package extension and
 needs `using QuasiMonteCarlo`. [`SobolSampling`](@ref) stays the light default for
 a shifted Sobol sequence without the extra dependencies.
 
-`warmstart` behaves as in [`MonteCarlo`](@ref).
+`warmstart` and `keep_inputs` behave as in [`MonteCarlo`](@ref).
 """
 struct QMCSampling{S} <: AbstractPPFMethod
     sampler::S
     n::Int
     warmstart::Symbol
+    keep_inputs::Bool
 end
 
-QMCSampling(sampler; n::Integer = 1000, warmstart::Symbol = :off) =
-    QMCSampling(sampler, Int(n), warmstart)
+QMCSampling(sampler; n::Integer = 1000, warmstart::Symbol = :off, keep_inputs::Bool = false) =
+    QMCSampling(sampler, Int(n), warmstart, keep_inputs)
 
 function solve(
     prob::PPFProblem,

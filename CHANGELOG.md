@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning].
 
 ## [Unreleased]
 
+- `keep_inputs` option on every sampling method: with `keep_inputs = true` the
+  u-space points of the converged samples are stored in `PPFResult.u`, aligned
+  with the sample columns, so estimates can be post-processed against their
+  inputs
 - Latin hypercube sampling: `LatinHypercube` stratifies every germ dimension into
   `n` equal-probability strata, reducing the variance of smooth QoI estimates at
   the same sample count

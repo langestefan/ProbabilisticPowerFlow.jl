@@ -43,9 +43,13 @@ a copula on the germ. Validates on construction:
 Component existence in the network is the backend's half of the validation, enforced
 by [`init_state`](@ref).
 """
-struct UncertaintyModel{C<:AbstractDependence}
-    variables::Vector{GermVariable}
-    assignments::Vector{Assignment}
+struct UncertaintyModel{
+    C<:AbstractDependence,
+    V<:AbstractVector{<:GermVariable},
+    A<:AbstractVector{<:Assignment},
+}
+    variables::V
+    assignments::A
     dependence::C
     varindex::Vector{Int}   # assignment j reads germ value varindex[j]
 
@@ -84,12 +88,12 @@ struct UncertaintyModel{C<:AbstractDependence}
                 ),
             )
         end
-        return new{C}(
-            collect(GermVariable, variables),
-            collect(Assignment, assignments),
-            dependence,
-            varindex,
-        )
+        # plain collect keeps a concrete element type when the variables or
+        # assignments are homogeneous, which removes dynamic dispatch from the
+        # to_physical! hot loop
+        vars = collect(variables)
+        assigns = collect(assignments)
+        return new{C,typeof(vars),typeof(assigns)}(vars, assigns, dependence, varindex)
     end
 end
 

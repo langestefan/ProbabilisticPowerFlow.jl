@@ -1,5 +1,5 @@
 """
-    SobolSampling(; n = 1000, warmstart = :off)
+    SobolSampling(; n = 1000, warmstart = :off, keep_inputs = false)
 
 Quasi-Monte Carlo sampling on a Sobol low-discrepancy sequence with a random
 Cranley-Patterson shift. The sequence covers the unit cube far more evenly than
@@ -11,11 +11,12 @@ The implementation lives in the `PPFSobolExt` package extension and needs
 `using Sobol`. Without the Sobol package loaded, `solve` throws a descriptive
 error.
 
-`warmstart` behaves as in [`MonteCarlo`](@ref).
+`warmstart` and `keep_inputs` behave as in [`MonteCarlo`](@ref).
 """
 Base.@kwdef struct SobolSampling <: AbstractPPFMethod
     n::Int = 1000
     warmstart::Symbol = :off
+    keep_inputs::Bool = false
 end
 
 function solve(

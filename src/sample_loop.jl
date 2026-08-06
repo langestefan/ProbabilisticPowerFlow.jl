@@ -66,6 +66,7 @@ function solve_u_matrix(
     x = Vector{Float64}(undef, n_inj)
     samples = Matrix{Float64}(undef, n_qois, n)
     sample_indices = Vector{Int}(undef, n)
+    u_kept = method.keep_inputs ? Matrix{Float64}(undef, d, n) : nothing
     failures = FailedSample[]
     n_converged = 0
     n_solves = 0
@@ -85,6 +86,7 @@ function solve_u_matrix(
                 samples[k, n_converged] = extract(state, backend, q)
             end
             sample_indices[n_converged] = i
+            u_kept === nothing || (u_kept[:, n_converged] = u)
         else
             # A diverged state holds no usable solution, so the chain restarts
             # from a cold start.
@@ -99,6 +101,7 @@ function solve_u_matrix(
         samples[:, 1:n_converged],
         sample_indices[1:n_converged],
         failures,
+        u_kept === nothing ? nothing : u_kept[:, 1:n_converged],
         n,
         n_solves,
     )

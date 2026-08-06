@@ -143,3 +143,30 @@ end
     @test sort(r_sorted.sample_indices) == r_off.sample_indices
     @test_throws ArgumentError solve(prob, mk(:backwards))
 end
+
+@testitem "keep_inputs stores the converged u points" tags = [:integration] setup =
+    [MCSetup] begin
+    prob = case5_problem()
+    r = solve(prob, MonteCarlo(n = 50, keep_inputs = true); rng = Xoshiro(21))
+    @test r.u isa Matrix{Float64}
+    @test size(r.u) == (3, n_converged(r))
+    @test all(0 .< r.u .< 1)
+
+    # a stored u point reproduces its recorded QoI through a fresh solve
+    x = to_physical(prob.model, r.u[:, 7])
+    state = init_state(prob.backend, targets(prob.model))
+    set_injections!(state, prob.backend, x)
+    @test solve!(state, prob.backend).converged
+    @test extract(state, prob.backend, VoltageMagnitude(5)) ≈ r.samples[1, 7] atol = 1e-10
+
+    # off by default, and off through the shared matrix path too
+    @test solve(prob, MonteCarlo(n = 20); rng = Xoshiro(1)).u === nothing
+    rs = solve(prob, LatinHypercube(n = 20, keep_inputs = true); rng = Xoshiro(1))
+    @test size(rs.u) == (3, n_converged(rs))
+
+    # failed samples keep their u in failures, converged u stays aligned
+    heavy = case5_problem(load_scale = 4.4, std_frac = 0.15)
+    rh = solve(heavy, MonteCarlo(n = 100, keep_inputs = true); rng = Xoshiro(2026))
+    @test !isempty(rh.failures)
+    @test size(rh.u, 2) == n_converged(rh)
+end

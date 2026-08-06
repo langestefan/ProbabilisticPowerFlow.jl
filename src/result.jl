@@ -25,6 +25,10 @@ Output of a sampling method. Fields:
   - `sample_indices`: column `j` of `samples` came from original sample
     `sample_indices[j]`, keeping every sample traceable to its `u`-point.
   - `failures`: the diverged samples, see [`FailedSample`](@ref).
+  - `u`: the `(d × n_converged)` matrix of u-space points of the converged
+    samples, column `j` matching column `j` of `samples`. Only kept when the
+    method was built with `keep_inputs = true`, otherwise `nothing`. Failed
+    samples always carry their u-point in `failures`.
   - `n_samples`: the requested sample budget.
   - `n_solves`: number of deterministic power flow solve calls, including failed
     ones — the hardware-independent cost currency of the benchmark protocol.
@@ -37,6 +41,7 @@ struct PPFResult{M<:AbstractPPFMethod}
     samples::Matrix{Float64}
     sample_indices::Vector{Int}
     failures::Vector{FailedSample}
+    u::Union{Nothing,Matrix{Float64}}
     n_samples::Int
     n_solves::Int
 end
