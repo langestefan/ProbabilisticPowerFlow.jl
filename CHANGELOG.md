@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning].
 
 ## [Unreleased]
 
+- Warm-start scheduling in `MonteCarlo`: the `warmstart` option accepts `:chain` to
+  start each solve from the previous converged solution and `:sorted` to solve the
+  samples in order of total injection first. Results are unchanged up to solver
+  tolerance and a seed reproduces the same samples in every mode
 - PowerModels.jl backend adapter: `PowerModelsBackend` builds from a PowerModels
   network data dictionary and solves with the native sparse Newton AC power flow.
   Ships as the package extension `PPFPowerModelsExt`, loaded with

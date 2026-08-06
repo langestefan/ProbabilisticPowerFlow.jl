@@ -87,3 +87,51 @@ end
         MonteCarlo(n = 10, failure_policy = :retry),
     )
 end
+
+@testitem "warm start scheduling changes cost, not results" tags = [:integration] setup =
+    [MCSetup] begin
+    prob = case5_problem()
+    r_off = solve(prob, MonteCarlo(n = 500, warmstart = :off); rng = Xoshiro(11))
+    r_chain = solve(prob, MonteCarlo(n = 500, warmstart = :chain); rng = Xoshiro(11))
+    r_sorted = solve(prob, MonteCarlo(n = 500, warmstart = :sorted); rng = Xoshiro(11))
+
+    # every mode solves the same 500 samples once
+    @test r_off.n_solves == r_chain.n_solves == r_sorted.n_solves == 500
+    @test isempty(r_off.failures) && isempty(r_chain.failures) && isempty(r_sorted.failures)
+
+    # chained starts change the iteration path, not the solution
+    @test r_chain.sample_indices == r_off.sample_indices
+    @test isapprox(r_chain.samples, r_off.samples; atol = 1e-6)
+
+    # :sorted solves out of draw order and records the mapping back
+    @test sort(r_sorted.sample_indices) == r_off.sample_indices
+    for j in eachindex(r_sorted.sample_indices)
+        @test isapprox(
+            r_sorted.samples[:, j],
+            r_off.samples[:, r_sorted.sample_indices[j]];
+            atol = 1e-6,
+        )
+    end
+end
+
+@testitem "warm start scheduling validates its inputs" tags = [:integration] setup =
+    [MCSetup] begin
+    prob = case5_problem()
+    @test_throws ArgumentError solve(prob, MonteCarlo(n = 10, warmstart = :backwards))
+
+    struct ColdBackend <: ProbabilisticPowerFlow.AbstractBackend end
+    cold = PPFProblem(ColdBackend(), prob.model, prob.qois)
+    @test_throws ArgumentError solve(cold, MonteCarlo(n = 10, warmstart = :chain))
+end
+
+@testitem "warm start chain recovers after divergence" tags = [:integration] setup =
+    [MCSetup] begin
+    # Near the loadability nose some samples diverge. The chain must restart cold
+    # after each failure and keep the bookkeeping intact.
+    prob = case5_problem(load_scale = 4.4, std_frac = 0.15)
+    r = solve(prob, MonteCarlo(n = 400, warmstart = :chain); rng = Xoshiro(2026))
+    @test !isempty(r.failures)
+    @test n_converged(r) > 0
+    @test n_converged(r) + length(r.failures) == r.n_samples
+    @test r.n_solves == r.n_samples
+end
