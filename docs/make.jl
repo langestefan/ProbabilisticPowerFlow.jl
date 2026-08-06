@@ -66,7 +66,7 @@ end
 makedocs(;
     modules = [ProbabilisticPowerFlow],
     authors = "Stefan de Lange <langestefan@msn.com>",
-    repo = "https://github.com/langestefan/ProbabilisticPowerFlow.jl/blob/{commit}{path}#{line}",
+    repo = Documenter.Remotes.GitHub("langestefan", "ProbabilisticPowerFlow.jl"),
     sitename = "ProbabilisticPowerFlow.jl",
     format = Documenter.HTML(;
         canonical = "https://langestefan.github.io/ProbabilisticPowerFlow.jl",
