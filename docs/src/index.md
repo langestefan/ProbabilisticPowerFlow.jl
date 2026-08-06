@@ -6,8 +6,6 @@ CurrentModule = ProbabilisticPowerFlow
 
 Documentation for [ProbabilisticPowerFlow](https://github.com/langestefan/ProbabilisticPowerFlow.jl).
 
-Welcome!
-
 ## Contributors
 
 ```@raw html
