@@ -78,6 +78,11 @@ function throws a `MethodError`.
 
 `tol` is the tolerance on the infinity-norm of the power mismatch. `maxiter` is the
 solver iteration limit.
+
+Networks with several reference buses are supported. Each reference bus holds its
+voltage magnitude setpoint with the angle fixed at zero, and its active and reactive
+injection are outcomes of the solve. This matches how pandapower treats several
+external grid connections, which is what benchmark datasets such as SimBench assume.
 """
 function PowerModelsBackend end
 

@@ -56,8 +56,7 @@ function PPF.PowerModelsBackend(
     end
 
     n_ref = count(is_slack_bus, values(data["bus"]))
-    n_ref == 1 ||
-        throw(ArgumentError("exactly one reference bus is required, got $(n_ref)"))
+    n_ref >= 1 || throw(ArgumentError("at least one reference bus is required"))
     gen_buses = Set(g["gen_bus"] for g in values(data["gen"]) if g["gen_status"] != 0)
     for bus in values(data["bus"])
         if (is_pv_bus(bus) || is_slack_bus(bus)) && !(bus["index"] in gen_buses)

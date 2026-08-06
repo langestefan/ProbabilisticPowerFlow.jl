@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning].
 
 ## [Unreleased]
 
+- The PowerModels backend accepts networks with several reference buses. Each
+  reference bus holds its voltage magnitude setpoint with the angle fixed at zero
+  and its injection is an outcome of the solve, matching how pandapower treats
+  several external grid connections
 - Warm-start scheduling in `MonteCarlo`: the `warmstart` option accepts `:chain` to
   start each solve from the previous converged solution and `:sorted` to solve the
   samples in order of total injection first. Results are unchanged up to solver

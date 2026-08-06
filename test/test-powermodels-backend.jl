@@ -43,8 +43,14 @@ end
     bad["per_unit"] = false
     @test_throws ArgumentError PowerModelsBackend(bad)
 
+    # a second reference bus is allowed, a network without any is not
+    twoslack = deepcopy(data)
+    twoslack["bus"]["2"]["bus_type"] = 3
+    @test PowerModelsBackend(twoslack) isa AbstractBackend
+
     bad = deepcopy(data)
-    bad["bus"]["2"]["bus_type"] = 3
+    bad["bus"]["1"]["bus_type"] = 2
+    bad["bus"]["2"]["bus_type"] = 2
     @test_throws ArgumentError PowerModelsBackend(bad)
 
     @test_throws ArgumentError PowerModelsBackend(Dict{String,Any}("per_unit" => true))
@@ -236,5 +242,45 @@ end
         va_w = extract(state, backend, VoltageAngle(bus))
         va_f = extract(fresh, backend, VoltageAngle(bus))
         @test va_w ≈ va_f atol = 1e-10
+    end
+end
+
+@testitem "multi-slack network solves" tags = [:integration, :powermodels] setup =
+    [PMCase5] begin
+    using ProbabilisticPowerFlow
+    import PowerModels as PM
+
+    # case5 with bus 2 promoted to a second reference bus
+    data = pm_case5()
+    data["bus"]["2"]["bus_type"] = 3
+    backend = PowerModelsBackend(data)
+
+    id5 = load_at(data, 5)
+    state = init_state(backend, [ComponentRef(:load, id5, :pd)])
+    set_injections!(state, backend, [0.7])
+    info = solve!(state, backend)
+    @test info.converged
+
+    # each reference bus holds its magnitude setpoint with the angle at zero
+    @test extract(state, backend, VoltageMagnitude(1)) ≈ 1.06 atol = 1e-12
+    @test extract(state, backend, VoltageAngle(1)) == 0.0
+    @test extract(state, backend, VoltageMagnitude(2)) ≈ 1.04 atol = 1e-12
+    @test extract(state, backend, VoltageAngle(2)) == 0.0
+
+    # the adapter must agree with PowerModels' own solver on the same network
+    check = deepcopy(data)
+    check["load"][id5]["pd"] = 0.7
+    res = PM.compute_ac_pf(check)
+    @test res["termination_status"]
+    for bus = 1:5
+        pmbus = res["solution"]["bus"]["$(bus)"]
+        @test extract(state, backend, VoltageMagnitude(bus)) ≈ pmbus["vm"] atol = 1e-8
+        @test extract(state, backend, VoltageAngle(bus)) ≈ pmbus["va"] atol = 1e-8
+    end
+
+    # injections at either reference bus are refused
+    for bus in (1, 2)
+        gid = only(id for (id, g) in data["gen"] if g["gen_bus"] == bus)
+        @test_throws ArgumentError init_state(backend, [ComponentRef(:gen, gid, :pg)])
     end
 end
