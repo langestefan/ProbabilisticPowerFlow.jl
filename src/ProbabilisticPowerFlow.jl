@@ -41,6 +41,7 @@ include("sample_loop.jl")
 include("monte_carlo.jl")
 include("latin_hypercube.jl")
 include("sobol.jl")
+include("qmc.jl")
 include("reference_backend.jl")
 include("case5.jl")
 
@@ -58,7 +59,8 @@ export GermVariable, Assignment, UncertaintyModel, germ_dim, targets
 export to_physical, to_physical!
 
 # Problem, methods, results
-export PPFProblem, AbstractPPFMethod, MonteCarlo, LatinHypercube, SobolSampling, solve
+export PPFProblem,
+    AbstractPPFMethod, MonteCarlo, LatinHypercube, SobolSampling, QMCSampling, solve
 export PPFResult, FailedSample, n_converged, failure_rate
 export qoi_samples, violation_probability
 

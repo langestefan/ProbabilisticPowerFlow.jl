@@ -93,3 +93,53 @@ end
         @test_throws ArgumentError solve(prob, method(n = 10, warmstart = :backwards))
     end
 end
+
+@testitem "QMCSampling adapts QuasiMonteCarlo samplers" tags = [:integration] setup =
+    [MCSetup] begin
+    using QuasiMonteCarlo
+
+    prob = case5_problem()
+    state = init_state(prob.backend, ComponentRef[])
+    solve!(state, prob.backend)
+    v5_det = extract(state, prob.backend, VoltageMagnitude(5))
+
+    for sampler in (SobolSample(), HaltonSample())
+        r = solve(prob, QMCSampling(sampler; n = 400))
+        @test r.n_samples == 400
+        @test r.n_solves == 400
+        @test isempty(r.failures)
+        @test mean(r, VoltageMagnitude(5)) ≈ v5_det atol = 0.005
+    end
+end
+
+@testitem "QMCSampling randomization is owned by the sampler" tags = [:integration] setup =
+    [MCSetup] begin
+    using QuasiMonteCarlo
+
+    prob = case5_problem()
+    scrambled(seed) =
+        SobolSample(R = OwenScramble(base = 2, pad = 32, rng = Xoshiro(seed)))
+    r1 = solve(prob, QMCSampling(scrambled(1); n = 256))
+    r2 = solve(prob, QMCSampling(scrambled(1); n = 256))
+    r3 = solve(prob, QMCSampling(scrambled(2); n = 256))
+    @test r1.samples == r2.samples
+    @test r1.samples != r3.samples
+
+    # the solve rng does not touch the points
+    r4 = solve(prob, QMCSampling(scrambled(1); n = 256); rng = Xoshiro(99))
+    @test r1.samples == r4.samples
+end
+
+@testitem "QMCSampling shares the warm start modes" tags = [:integration] setup =
+    [MCSetup] begin
+    using QuasiMonteCarlo
+
+    prob = case5_problem()
+    mk(ws) = QMCSampling(SobolSample(); n = 100, warmstart = ws)
+    r_off = solve(prob, mk(:off))
+    r_chain = solve(prob, mk(:chain))
+    r_sorted = solve(prob, mk(:sorted))
+    @test isapprox(r_chain.samples, r_off.samples; atol = 1e-6)
+    @test sort(r_sorted.sample_indices) == r_off.sample_indices
+    @test_throws ArgumentError solve(prob, mk(:backwards))
+end
