@@ -5,6 +5,15 @@ import ProbabilisticPowerFlow as PPF
 import ProbabilisticPowerFlow:
     ComponentRef, SolveInfo, VoltageMagnitude, VoltageAngle, BranchActivePower
 
+# PowerModels bus_type codes: 1 is PQ, 2 is PV, 3 is the reference bus, and 4 is
+# inactive. The predicates accept the raw code or a bus data dictionary.
+is_pq_bus(t::Integer) = t == 1
+is_pv_bus(t::Integer) = t == 2
+is_slack_bus(t::Integer) = t == 3
+is_pq_bus(bus::AbstractDict) = is_pq_bus(bus["bus_type"]::Int)
+is_pv_bus(bus::AbstractDict) = is_pv_bus(bus["bus_type"]::Int)
+is_slack_bus(bus::AbstractDict) = is_slack_bus(bus["bus_type"]::Int)
+
 """
     PMBackend
 
@@ -46,16 +55,16 @@ function PPF.PowerModelsBackend(
         )
     end
 
-    n_ref = count(b -> b["bus_type"] == 3, values(data["bus"]))
+    n_ref = count(is_slack_bus, values(data["bus"]))
     n_ref == 1 ||
         throw(ArgumentError("exactly one reference bus is required, got $(n_ref)"))
     gen_buses = Set(g["gen_bus"] for g in values(data["gen"]) if g["gen_status"] != 0)
     for bus in values(data["bus"])
-        t = bus["bus_type"]
-        if (t == 2 || t == 3) && !(bus["index"] in gen_buses)
+        if (is_pv_bus(bus) || is_slack_bus(bus)) && !(bus["index"] in gen_buses)
             throw(
                 ArgumentError(
-                    "bus $(bus["index"]) has bus_type $(t) but no active generator",
+                    "bus $(bus["index"]) has bus_type $(bus["bus_type"]) but no " *
+                    "active generator",
                 ),
             )
         end
@@ -129,13 +138,13 @@ function PPF.init_state(b::PMBackend, refs::AbstractVector{ComponentRef})
             ),
         )
         bus = work["bus"]["$(comp[buskey])"]
-        bus["bus_type"] == 3 && throw(
+        is_slack_bus(bus) && throw(
             ArgumentError(
                 "cannot assign an injection at the slack bus $(comp[buskey]). The " *
                 "slack balances the network, so the value would be silently ignored.",
             ),
         )
-        if ref.field == :qd && bus["bus_type"] == 2
+        if ref.field == :qd && is_pv_bus(bus)
             throw(
                 ArgumentError(
                     "cannot assign reactive load at PV bus $(comp[buskey]). The " *
@@ -169,12 +178,12 @@ function write_solution!(data::Dict{String,Any}, pf_data, x::AbstractVector{Floa
     for (i, bid) in enumerate(pf_data.am.idx_to_bus)
         bus = data["bus"]["$(bid)"]
         t = pf_data.bus_type_idx[i]
-        if t == 1
+        if is_pq_bus(t)
             bus["vm"] = x[2i-1]
             bus["va"] = x[2i]
-        elseif t == 2
+        elseif is_pv_bus(t)
             bus["va"] = x[2i]
-        elseif t == 3
+        elseif is_slack_bus(t)
             bus["va"] = 0.0
         end
     end
@@ -198,10 +207,10 @@ function refresh_pf_data!(pf_data::PM.PowerFlowData, data::Dict{String,Any})
     for (_, gen) in data["gen"]
         gen["gen_status"] == 0 && continue
         gen_bus = data["bus"]["$(gen["gen_bus"])"]
-        if gen_bus["bus_type"] == 3
+        if is_slack_bus(gen_bus)
             p_delta[gen_bus["index"]] -= gen["pg"]
             q_delta[gen_bus["index"]] -= gen["qg"]
-        elseif gen_bus["bus_type"] == 2
+        elseif is_pv_bus(gen_bus)
             q_delta[gen_bus["index"]] -= gen["qg"]
         end
     end
@@ -215,7 +224,7 @@ function refresh_pf_data!(pf_data::PM.PowerFlowData, data::Dict{String,Any})
     fill!(pf_data.vm_idx, 1.0)
     fill!(pf_data.va_idx, 0.0)
     for (_, bus) in data["bus"]
-        if bus["bus_type"] == 2 || bus["bus_type"] == 3
+        if is_pv_bus(bus) || is_slack_bus(bus)
             pf_data.vm_idx[pf_data.am.bus_to_idx[bus["index"]]] = bus["vm"]
         end
     end
