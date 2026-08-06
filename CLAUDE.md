@@ -86,10 +86,11 @@ JuliaFormatter must be installed in the global Julia environment for the hook to
 julia --project=docs -e 'using Pkg; Pkg.develop(path="."); using LiveServer; servedocs()'
 ```
 
-`docs/make.jl` auto-discovers pages from `docs/src/` in filename order — pages are
-number-prefixed (`90-contributing.md`, `91-developer.md`, `95-reference.md`) to control
-ordering. New folders under `docs/src/` require a title entry in the `titles` Dict in
-`docs/make.jl`, or the build errors.
+`docs/make.jl` auto-discovers pages from `docs/src/` in filename order, with
+`index.md` always first. The current alphabetical order (`contributing.md`,
+`developer.md`, `reference.md`) is the intended order. A page that must sort
+differently needs a filename chosen with that in mind. New folders under `docs/src/`
+require a title entry in the `titles` Dict in `docs/make.jl`, or the build errors.
 
 ## Git workflow
 
