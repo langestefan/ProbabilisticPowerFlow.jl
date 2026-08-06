@@ -84,14 +84,19 @@ end
     PMState
 
 Mutable solver state of the [`PMBackend`](@ref): a working copy of the network data
-dictionary, the injection slots resolved once by `init_state`, and a lazy cache of
-branch flows computed on the first `BranchActivePower` extract after a solve.
+dictionary, the injection slots resolved once by `init_state`, a lazy cache of
+branch flows computed on the first `BranchActivePower` extract after a solve, and
+the `PowerFlowData` built by PowerModels on the first solve and reused afterwards.
+The admittance matrix, the Jacobian sparsity pattern, and the solver buffers in it
+depend only on topology and setpoints, which the backend contract holds fixed, so
+only the net bus injections are recomputed per solve.
 """
 mutable struct PMState
     data::Dict{String,Any}
     slots::Vector{Tuple{Dict{String,Any},String}}
     solved::Bool
     flows::Union{Nothing,Dict{String,Any}}
+    pf_data::Union{Nothing,PM.PowerFlowData}
 end
 
 function PPF.init_state(b::PMBackend, refs::AbstractVector{ComponentRef})
@@ -141,7 +146,7 @@ function PPF.init_state(b::PMBackend, refs::AbstractVector{ComponentRef})
         end
         slots[j] = (comp, String(ref.field))
     end
-    return PMState(work, slots, false, nothing)
+    return PMState(work, slots, false, nothing, nothing)
 end
 
 function PPF.set_injections!(state::PMState, ::PMBackend, x::AbstractVector{<:Real})
@@ -176,6 +181,47 @@ function write_solution!(data::Dict{String,Any}, pf_data, x::AbstractVector{Floa
     return data
 end
 
+# Restores an existing PowerFlowData to the state instantiate_pf_data would build
+# from the current network data, without redoing the topology work. Two parts:
+#
+#  1. The net bus injections: the sign-flipped bus deltas with the slack and PV
+#     generator terms removed, because the solver treats those as unknowns.
+#  2. The working buffers x0, vm_idx, va_idx, p_inject_idx, and q_inject_idx.
+#     The solver mutates them in place and its Jacobian callback reads vm_idx and
+#     va_idx directly, so leftovers from the previous solve would make the Newton
+#     path history dependent and cold solves nondeterministic.
+#
+# The admittance matrix, the Jacobian sparsity pattern, and the bus types depend
+# only on topology and setpoints, which the backend contract holds fixed.
+function refresh_pf_data!(pf_data::PM.PowerFlowData, data::Dict{String,Any})
+    p_delta, q_delta = PM.calc_bus_injection(data)
+    for (_, gen) in data["gen"]
+        gen["gen_status"] == 0 && continue
+        gen_bus = data["bus"]["$(gen["gen_bus"])"]
+        if gen_bus["bus_type"] == 3
+            p_delta[gen_bus["index"]] -= gen["pg"]
+            q_delta[gen_bus["index"]] -= gen["qg"]
+        elseif gen_bus["bus_type"] == 2
+            q_delta[gen_bus["index"]] -= gen["qg"]
+        end
+    end
+    for (i, bid) in enumerate(pf_data.am.idx_to_bus)
+        pf_data.p_delta_base_idx[i] = -p_delta[bid]
+        pf_data.q_delta_base_idx[i] = -q_delta[bid]
+    end
+    fill!(pf_data.x0, 0.0)
+    fill!(pf_data.p_inject_idx, 0.0)
+    fill!(pf_data.q_inject_idx, 0.0)
+    fill!(pf_data.vm_idx, 1.0)
+    fill!(pf_data.va_idx, 0.0)
+    for (_, bus) in data["bus"]
+        if bus["bus_type"] == 2 || bus["bus_type"] == 3
+            pf_data.vm_idx[pf_data.am.bus_to_idx[bus["index"]]] = bus["vm"]
+        end
+    end
+    return pf_data
+end
+
 function PPF.solve!(state::PMState, b::PMBackend; warmstart = nothing)
     state.flows = nothing
     state.solved = false
@@ -194,19 +240,25 @@ function PPF.solve!(state::PMState, b::PMBackend; warmstart = nothing)
         end
     end
     info = try
-        pf_data = PM.instantiate_pf_data(state.data)
+        if state.pf_data === nothing
+            state.pf_data = PM.instantiate_pf_data(state.data)
+        else
+            refresh_pf_data!(state.pf_data, state.data)
+        end
         res = PM._compute_ac_pf(
-            pf_data;
+            state.pf_data;
             flat_start = flat,
             ftol = b.tol,
             iterations = b.maxiter,
         )
         converged = res.x_converged || res.f_converged
-        converged && write_solution!(state.data, pf_data, res.zero)
+        converged && write_solution!(state.data, state.pf_data, res.zero)
         SolveInfo(converged, res.iterations, res.residual_norm)
     catch err
         # NLsolve throws on non-finite iterates and singular Jacobians. The
-        # contract records divergence as data instead.
+        # contract records divergence as data instead. A failed solve leaves no
+        # stale state behind: the deltas are recomputed and the starting point is
+        # fully rewritten on the next solve.
         err isa InterruptException && rethrow()
         SolveInfo(false, 0, NaN)
     end

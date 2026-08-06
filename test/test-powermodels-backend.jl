@@ -205,3 +205,36 @@ end
     @test mean(r, VoltageMagnitude(5)) ≈ v5 atol = 0.005
     @test 0.0 <= violation_probability(r, qois[2]) <= 1.0
 end
+
+@testitem "reused solver data leaves no stale state" tags = [:integration, :powermodels] setup =
+    [PMCase5] begin
+    data = pm_case5()
+    backend = PowerModelsBackend(data)
+    refs = [ComponentRef(:load, load_at(data, 5), :pd)]
+
+    # a state with history: a nominal solve, a diverging solve, and another load
+    # point, all on the same reused PowerFlowData
+    state = init_state(backend, refs)
+    set_injections!(state, backend, [0.6])
+    @test solve!(state, backend).converged
+    set_injections!(state, backend, [60.0])
+    @test !solve!(state, backend).converged
+    set_injections!(state, backend, [1.1])
+    @test solve!(state, backend).converged
+
+    # the same target point on the worn state and on a fresh state must agree to
+    # solver tolerance
+    set_injections!(state, backend, [0.9])
+    @test solve!(state, backend).converged
+    fresh = init_state(backend, refs)
+    set_injections!(fresh, backend, [0.9])
+    @test solve!(fresh, backend).converged
+    for bus = 1:5
+        vm_w = extract(state, backend, VoltageMagnitude(bus))
+        vm_f = extract(fresh, backend, VoltageMagnitude(bus))
+        @test vm_w ≈ vm_f atol = 1e-10
+        va_w = extract(state, backend, VoltageAngle(bus))
+        va_f = extract(fresh, backend, VoltageAngle(bus))
+        @test va_w ≈ va_f atol = 1e-10
+    end
+end
