@@ -4,7 +4,7 @@ version = "0.1.0"
 authors = ["Stefan de Lange <langestefan@msn.com>"]
 
 [workspace]
-projects = ["test", "docs"]
+projects = ["test", "docs", "benchmark"]
 
 [deps]
 Distributions = "31c24e10-a181-5473-b8eb-7969acd0382f"

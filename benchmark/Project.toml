@@ -1,0 +1,14 @@
+[deps]
+BenchmarkTools = "6e4b80f9-dd63-53aa-95a3-0cdb28fa8baf"
+Distributions = "31c24e10-a181-5473-b8eb-7969acd0382f"
+Downloads = "f43a241f-c20a-4ad4-852c-f6b1247861c6"
+PowerModels = "c36e90e8-916a-50a6-bd94-075b64ef4655"
+ProbabilisticPowerFlow = "7a0bcd8a-99c7-5dfb-8863-9081db092720"
+QuasiMonteCarlo = "8a4e6c94-4038-4cdc-81c3-7e6ffdb2a71b"
+Random = "9a3f8284-a2c9-5f02-9a11-845980a1fd5c"
+Serialization = "9e88b42a-f829-5b0c-bbe9-9e923198166b"
+Sobol = "ed01d8cd-4d21-5b2a-85b4-cc3bdc58bad4"
+Statistics = "10745b16-79ce-11e8-11f9-7d13ad32a3b2"
+
+[sources]
+ProbabilisticPowerFlow = {path = ".."}
