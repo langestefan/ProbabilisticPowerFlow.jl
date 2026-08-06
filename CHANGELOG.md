@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning].
 
 ## [Unreleased]
 
+- Latin hypercube sampling: `LatinHypercube` stratifies every germ dimension into
+  `n` equal-probability strata, reducing the variance of smooth QoI estimates at
+  the same sample count
+- Quasi-Monte Carlo sampling: `SobolSampling` runs on a Sobol sequence with a
+  random Cranley-Patterson shift, seed-reproducible and unbiased. Ships as the
+  package extension `PPFSobolExt`, loaded with `using Sobol`
+- Both new methods support the same `warmstart` scheduling as `MonteCarlo`
 - The PowerModels backend accepts networks with several reference buses. Each
   reference bus holds its voltage magnitude setpoint with the angle fixed at zero
   and its injection is an outcome of the solve, matching how pandapower treats

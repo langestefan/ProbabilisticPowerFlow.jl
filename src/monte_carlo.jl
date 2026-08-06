@@ -32,26 +32,8 @@ function solve(
     method::MonteCarlo;
     rng::AbstractRNG = Random.default_rng(),
 )
-    method.failure_policy == :record || throw(
-        ArgumentError(
-            "failure_policy $(repr(method.failure_policy)) is not implemented. " *
-            "Only :record is available.",
-        ),
-    )
-    method.warmstart in (:off, :chain, :sorted) || throw(
-        ArgumentError(
-            "warmstart $(repr(method.warmstart)) is not a mode. " *
-            "Use :off, :chain, or :sorted.",
-        ),
-    )
-    if method.warmstart != :off && !supports_warmstart(prob.backend)
-        throw(
-            ArgumentError(
-                "warmstart $(repr(method.warmstart)) requires a backend with " *
-                "supports_warmstart. $(typeof(prob.backend)) solves cold only.",
-            ),
-        )
-    end
+    check_failure_policy(method.failure_policy)
+    check_warmstart(method.warmstart, prob.backend)
 
     model = prob.model
     backend = prob.backend
@@ -60,31 +42,25 @@ function solve(
     n_qois = length(prob.qois)
     n = method.n
 
-    state = init_state(backend, targets(model))
-
     u = Vector{Float64}(undef, d)
-    x = Vector{Float64}(undef, n_inj)
-    germ = Vector{Float64}(undef, d)
 
-    # In :sorted mode all draws happen up front so the solve order can differ from
-    # the draw order. The draws go through the same rand! call on the same buffer
-    # as the per-sample modes, so a given seed produces the same samples in every
-    # mode.
-    U = Matrix{Float64}(undef, 0, 0)
-    X = Matrix{Float64}(undef, 0, 0)
-    order = 1:n
+    # In :sorted mode all draws happen up front so the solve order can differ
+    # from the draw order. The draws go through the same rand! call on the same
+    # buffer as the streaming modes, so a given seed produces the same samples in
+    # every mode.
     if method.warmstart == :sorted
         U = Matrix{Float64}(undef, d, n)
-        X = Matrix{Float64}(undef, n_inj, n)
         for i = 1:n
             rand!(rng, u)
             U[:, i] = u
-            to_physical!(view(X, :, i), model, u, germ)
         end
-        # Total injection is a cheap one-dimensional proxy for closeness in
-        # injection space.
-        order = sortperm(vec(sum(X, dims = 1)))
+        return solve_u_matrix(prob, method, U)
     end
+
+    state = init_state(backend, targets(model))
+
+    germ = Vector{Float64}(undef, d)
+    x = Vector{Float64}(undef, n_inj)
     samples = Matrix{Float64}(undef, n_qois, n)
     sample_indices = Vector{Int}(undef, n)
     failures = FailedSample[]
@@ -92,16 +68,11 @@ function solve(
     n_solves = 0
     have_solution = false
 
-    for i in order
-        if method.warmstart == :sorted
-            copyto!(u, view(U, :, i))
-            copyto!(x, view(X, :, i))
-        else
-            rand!(rng, u)
-            to_physical!(x, model, u, germ)
-        end
+    for i = 1:n
+        rand!(rng, u)
+        to_physical!(x, model, u, germ)
         set_injections!(state, backend, x)
-        warm = method.warmstart != :off && have_solution ? state : nothing
+        warm = method.warmstart == :chain && have_solution ? state : nothing
         info = solve!(state, backend; warmstart = warm)
         n_solves += 1
         if info.converged

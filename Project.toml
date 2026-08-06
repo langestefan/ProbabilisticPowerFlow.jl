@@ -14,14 +14,17 @@ Statistics = "10745b16-79ce-11e8-11f9-7d13ad32a3b2"
 
 [weakdeps]
 PowerModels = "c36e90e8-916a-50a6-bd94-075b64ef4655"
+Sobol = "ed01d8cd-4d21-5b2a-85b4-cc3bdc58bad4"
 
 [extensions]
 PPFPowerModelsExt = "PowerModels"
+PPFSobolExt = "Sobol"
 
 [compat]
 Distributions = "0.25"
 LinearAlgebra = "1.10"
 PowerModels = "0.21"
 Random = "1.10"
+Sobol = "1.5"
 Statistics = "1.10"
 julia = "1.10"
