@@ -11,9 +11,12 @@ abstract type AbstractPPFMethod end
 """
     solve(prob::PPFProblem, method::AbstractPPFMethod; rng, ntasks = 1) -> PPFResult
 
-Estimate the QoIs of `prob` with `method`. (Framework-level `solve` versus the
-backend-level in-place [`solve!`](@ref): one call of `solve` triggers many
-deterministic `solve!` calls.)
+Estimate the QoIs of `prob` with `method`. The framework-level `solve` runs many
+deterministic backend-level [`solve!`](@ref) calls.
+
+This is a method of `CommonSolve.solve`, the shared SciML interface function, so
+the name is the same one NonlinearSolve.jl and the rest of that ecosystem extend
+and loading them together is unambiguous.
 
 With `ntasks > 1` the power flow solves run on that many concurrent tasks.
 Parallelism never changes which samples are drawn: a seed produces the same

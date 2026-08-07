@@ -13,6 +13,11 @@ See `archive/ppf_design.md` in the repository for the design document.
 """
 module ProbabilisticPowerFlow
 
+# solve and solve! are CommonSolve's functions, not ours. CommonSolve is the tiny
+# interface package the SciML ecosystem shares, so extending it means loading this
+# package next to NonlinearSolve.jl gives one solve rather than a name clash.
+import CommonSolve: solve, solve!
+
 using Distributions: Distributions, Normal, UnivariateDistribution, cdf, quantile
 using LinearAlgebra:
     LinearAlgebra,

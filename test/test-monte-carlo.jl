@@ -135,3 +135,23 @@ end
     @test n_converged(r) + length(r.failures) == r.n_samples
     @test r.n_solves == r.n_samples
 end
+
+@testitem "solve and solve! extend the CommonSolve interface" tags = [:unit, :fast] setup =
+    [MCSetup] begin
+    import CommonSolve
+    import NonlinearSolve
+
+    # the point of extending CommonSolve: loading this package next to a SciML
+    # package gives one solve, not an ambiguous binding that errors on use
+    @test solve === CommonSolve.solve
+    @test solve! === CommonSolve.solve!
+    @test parentmodule(solve) === CommonSolve
+
+    prob = case5_problem()
+    r = CommonSolve.solve(prob, MonteCarlo(n = 20); rng = Xoshiro(1))
+    @test n_converged(r) == 20
+
+    state = init_state(prob.backend, targets(prob.model))
+    set_injections!(state, prob.backend, [0.45, 0.60, 0.30])
+    @test CommonSolve.solve!(state, prob.backend).converged
+end

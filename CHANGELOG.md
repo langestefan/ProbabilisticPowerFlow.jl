@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning].
 
 ## [Unreleased]
 
+- `solve` and `solve!` are now methods of the CommonSolve.jl interface functions
+  rather than functions this package owns. CommonSolve is the small interface
+  package the SciML ecosystem shares, so `using ProbabilisticPowerFlow,
+  NonlinearSolve` gives one `solve` instead of an ambiguous name that errors on
+  use. Calling code is unchanged
 - Pluggable solve loop for the PowerModels backend: `PowerModelsBackend` accepts
   a `solver` keyword. The default `:nlsolve` keeps the bundled path, and any
   NonlinearSolve.jl algorithm, available after `using NonlinearSolve` through the
