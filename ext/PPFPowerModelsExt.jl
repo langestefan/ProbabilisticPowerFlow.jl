@@ -6,11 +6,11 @@ import ProbabilisticPowerFlow:
     ComponentRef, SolveInfo, VoltageMagnitude, VoltageAngle, BranchActivePower
 
 # PowerModels bus_type codes: 1 is PQ, 2 is PV, 3 is the reference bus, and 4 is
-# inactive. The predicates accept the raw code or a bus data dictionary.
+# inactive. The predicates take the raw code, plus a bus dictionary where the
+# call sites have one.
 is_pq_bus(t::Integer) = t == 1
 is_pv_bus(t::Integer) = t == 2
 is_slack_bus(t::Integer) = t == 3
-is_pq_bus(bus::AbstractDict) = is_pq_bus(bus["bus_type"]::Int)
 is_pv_bus(bus::AbstractDict) = is_pv_bus(bus["bus_type"]::Int)
 is_slack_bus(bus::AbstractDict) = is_slack_bus(bus["bus_type"]::Int)
 
