@@ -1,7 +1,9 @@
 [deps]
+Aqua = "4c88cf16-eb10-579e-8560-4a9242c79595"
 CommonSolve = "38540f10-b2f7-11e9-35d8-d573e4eb0ff2"
 Copulas = "ae264745-0b69-425e-9d9d-cf662c5eec93"
 Distributions = "31c24e10-a181-5473-b8eb-7969acd0382f"
+JET = "c3a54625-cd67-489e-a8e7-0a5a0ff4e31b"
 LinearAlgebra = "37e2e46d-f89d-539d-b4ee-838fcccc9c8e"
 NonlinearSolve = "8913a72c-1f9b-4ce2-8d82-65094dcecaec"
 PowerModels = "c36e90e8-916a-50a6-bd94-075b64ef4655"
@@ -17,3 +19,7 @@ TestItems = "1c621080-faea-4a02-84b6-bbd5e436b8fe"
 
 [sources]
 ProbabilisticPowerFlow = {path = ".."}
+
+[compat]
+Aqua = "0.8"
+JET = "0.9, 0.10, 0.11, 0.12"
