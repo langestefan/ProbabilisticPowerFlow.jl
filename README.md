@@ -23,7 +23,7 @@ In a nutshell, the workflow covered by `ProbabilisticPowerFlow.jl` is:
 
 ```mermaid
 flowchart LR
-    U["u ~ U(0,1)^d"] --> G["germ:<br/>copula + marginal quantiles"]
+    U["u ~ Uniform(0,1)^d"] --> G["germ:<br/>copula + marginal quantiles"]
     G --> I["injections"]
     D["grid description"] --> B["backend"]
     B -->|"init_state"| ST["solver state:<br/>admittance matrix,<br/>Jacobian pattern"]
