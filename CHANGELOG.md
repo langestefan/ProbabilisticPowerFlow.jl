@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning].
 
 ## [Unreleased]
 
+- Nataf correction for Pearson correlation targets:
+  `GaussianCopula(R, variables; correlation = :pearson)` maps a Pearson target on
+  the germ to the copula parameter that induces it, given the marginals. The
+  correction inverts the induced-correlation integral with a Gauss-Hermite
+  product rule and a bisection, exposed on its own as `pearson_to_gaussian`, the
+  Pearson counterpart of `spearman_to_gaussian`. It reproduces the closed forms
+  for Gaussian, lognormal, and uniform marginals to about 1e-9, keeps zero
+  targets exactly zero, and throws when a target falls outside the range skewed
+  marginals can attain, naming the pair and the range. `:pearson` without
+  marginals still throws, now pointing at the constructor that takes them
 - `solve` and `solve!` are now methods of the CommonSolve.jl interface functions
   rather than functions this package owns. CommonSolve is the small interface
   package the SciML ecosystem shares, so `using ProbabilisticPowerFlow,
