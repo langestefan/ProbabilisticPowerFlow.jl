@@ -71,7 +71,29 @@ function qoi_index(r::PPFResult, q::AbstractQoI)
     return i
 end
 
+"""
+    qoi_samples(r::PPFResult, q::AbstractQoI)
+
+The converged samples of `q`, in sample order.
+
+A [`ViolationEvent`](@ref) is derived from the samples of its own quantity when the
+event itself was not estimated, since the indicator is a deterministic function of
+that quantity. Any band on a recorded quantity can therefore be evaluated after the
+run, with no new solves.
+"""
 qoi_samples(r::PPFResult, q::AbstractQoI) = view(r.samples, qoi_index(r, q), :)
+
+function qoi_samples(r::PPFResult, v::ViolationEvent)
+    i = findfirst(==(v), r.qois)
+    i === nothing || return view(r.samples, i, :)
+    j = findfirst(==(v.qoi), r.qois)
+    j === nothing && throw(
+        ArgumentError(
+            "neither the event $(v) nor its quantity $(v.qoi) is part of this result",
+        ),
+    )
+    return [Float64(!(v.lo <= x <= v.hi)) for x in view(r.samples, j, :)]
+end
 
 Statistics.mean(r::PPFResult, q::AbstractQoI) = mean(qoi_samples(r, q))
 Statistics.std(r::PPFResult, q::AbstractQoI) = std(qoi_samples(r, q))
@@ -80,7 +102,9 @@ Statistics.quantile(r::PPFResult, q::AbstractQoI, p) = quantile(qoi_samples(r, q
 """
     violation_probability(r::PPFResult, v::ViolationEvent)
 
-Estimated probability of the violation event: the mean of its indicator samples.
+Estimated probability of the violation event: the mean of its indicator samples. The
+event does not have to have been part of the run, as long as the quantity it bounds
+was, so several bands can be read off one result.
 """
 violation_probability(r::PPFResult, v::ViolationEvent) = mean(r, v)
 
