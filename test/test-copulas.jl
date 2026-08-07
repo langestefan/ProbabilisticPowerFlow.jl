@@ -138,7 +138,7 @@ end
         ],
         Copulas.ClaytonCopula(2, 2.0),
     )
-    prob = PPFProblem(ReferenceBackend(case5()), model, AbstractQoI[VoltageMagnitude(5)])
+    prob = PPFProblem(ReferenceBackend(case5()), model, [VoltageMagnitude(5)])
     r = solve(prob, MonteCarlo(n = 500); rng = Xoshiro(3))
     @test n_converged(r) == 500
     @test 0.9 < mean(r, VoltageMagnitude(5)) < 1.1
@@ -159,7 +159,7 @@ end
         ],
         Copulas.ClaytonCopula(2, 2.0),
     )
-    prob = PPFProblem(ReferenceBackend(case5()), model, AbstractQoI[VoltageMagnitude(5)])
+    prob = PPFProblem(ReferenceBackend(case5()), model, [VoltageMagnitude(5)])
 
     # determinism end to end: same seed, same samples
     r1 = solve(prob, SobolSampling(n = 256); rng = Xoshiro(5))

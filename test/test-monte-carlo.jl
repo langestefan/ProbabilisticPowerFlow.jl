@@ -14,7 +14,7 @@
         rho_s = 0.5
         R = [1.0 rho_s 0.0; rho_s 1.0 0.0; 0.0 0.0 1.0]
         model = UncertaintyModel(vars, assigns, GaussianCopula(R))
-        qois = AbstractQoI[
+        qois = [
             VoltageMagnitude(5),
             VoltageAngle(3),
             ViolationEvent(VoltageMagnitude(5), 0.95, 1.05),

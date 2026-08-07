@@ -67,9 +67,8 @@ model = UncertaintyModel(vars, assigns, GaussianCopula(R))
 
 # monitor the PQ bus whose voltage moves most under the uncertainty
 pilot = let
-    prob = PPFProblem(backend, model, AbstractQoI[])
     pq = [bus["index"] for bus in values(data["bus"]) if bus["bus_type"] == 1]
-    qois = AbstractQoI[VoltageMagnitude(b) for b in pq]
+    qois = [VoltageMagnitude(b) for b in pq]
     r = solve(
         PPFProblem(backend, model, qois),
         MonteCarlo(n = 128, warmstart = :chain);
@@ -81,7 +80,7 @@ end
 @info "monitoring bus $pilot"
 
 qoi = VoltageMagnitude(pilot)
-prob = PPFProblem(backend, model, AbstractQoI[qoi])
+prob = PPFProblem(backend, model, [qoi])
 
 scrambled(seed) =
     QMC.SobolSample(R = QMC.OwenScramble(base = 2, pad = 32, rng = Xoshiro(seed)))
