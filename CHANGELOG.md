@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning].
 
 ## [Unreleased]
 
+- Types that carry a network or a sample set display as a tree in the style
+  JuMP uses, instead of dumping their contents. Showing a `PPFProblem` built on
+  a 1354-bus case printed 1.5 MB of network data, or 11 kB of one truncated line
+  at the prompt, and now prints a 20-line summary. `PPFProblem`,
+  `UncertaintyModel`, `PPFResult`, both backends and their states, the sampling
+  methods, and `NetworkData` are covered, each with a one-line form for
+  interpolation and containers
+
 - A violation band can be read off a result after the run. `violation_probability`
   and `qoi_samples` derive a `ViolationEvent` from the samples of the quantity it
   bounds, so several bands come off one run with no new solves. Declaring the

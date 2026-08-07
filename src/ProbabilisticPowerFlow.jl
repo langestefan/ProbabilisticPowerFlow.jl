@@ -50,6 +50,7 @@ include("sobol.jl")
 include("qmc.jl")
 include("reference_backend.jl")
 include("case5.jl")
+include("show.jl")
 
 # Backend contract
 export AbstractBackend, ComponentRef, SolveInfo
