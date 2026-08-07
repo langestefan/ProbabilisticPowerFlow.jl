@@ -83,3 +83,31 @@ Statistics.quantile(r::PPFResult, q::AbstractQoI, p) = quantile(qoi_samples(r, q
 Estimated probability of the violation event: the mean of its indicator samples.
 """
 violation_probability(r::PPFResult, v::ViolationEvent) = mean(r, v)
+
+# the type is printed unqualified so the summary reads the same everywhere, not
+# only in a session that has the package in scope
+result_type(r::PPFResult) = string(nameof(PPFResult), "{", nameof(typeof(r.method)), "}")
+
+function Base.show(io::IO, r::PPFResult)
+    return print(io, result_type(r), "(", n_converged(r), "/", r.n_samples, " converged)")
+end
+
+function Base.show(io::IO, ::MIME"text/plain", r::PPFResult)
+    print(
+        io,
+        result_type(r),
+        ": ",
+        n_converged(r),
+        " of ",
+        r.n_samples,
+        " samples converged in ",
+        r.n_solves,
+        " solves",
+    )
+    isempty(r.failures) ||
+        print(io, ", ", round(100 * failure_rate(r), digits = 1), "% failed")
+    for q in r.qois
+        print(io, "\n  ", q)
+    end
+    return nothing
+end
