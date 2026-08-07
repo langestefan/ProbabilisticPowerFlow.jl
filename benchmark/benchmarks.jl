@@ -35,7 +35,7 @@ function case5_problem()
     assigns = [Assignment("load$(bus)", ComponentRef(:load, "$(bus)", :pd)) for bus = 3:5]
     R = [1.0 0.5 0.0; 0.5 1.0 0.0; 0.0 0.0 1.0]
     model = UncertaintyModel(vars, assigns, GaussianCopula(R))
-    qois = AbstractQoI[VoltageMagnitude(5)]
+    qois = [VoltageMagnitude(5)]
     return PPFProblem(ReferenceBackend(case5()), model, qois)
 end
 

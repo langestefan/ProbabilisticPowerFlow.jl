@@ -90,7 +90,7 @@ end
         ],
         GaussianCopula([1.0 0.5; 0.5 1.0]),
     )
-    prob = PPFProblem(backend, model, AbstractQoI[VoltageMagnitude(5)])
+    prob = PPFProblem(backend, model, [VoltageMagnitude(5)])
 
     r1 = solve(prob, MonteCarlo(n = 200, warmstart = :chain); rng = Xoshiro(9))
     r4 = solve(prob, MonteCarlo(n = 200, warmstart = :chain); rng = Xoshiro(9), ntasks = 4)
