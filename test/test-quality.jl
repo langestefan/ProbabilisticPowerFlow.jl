@@ -1,7 +1,12 @@
 @testitem "Aqua quality assurance" tags = [:quality] begin
     using Aqua: Aqua
 
-    Aqua.test_all(ProbabilisticPowerFlow)
+    # persistent_tasks precompiles a wrapper package in a subprocess and waits for
+    # it to report back. On the Windows runner that subprocess exits without
+    # reporting, which fails the check for reasons that have nothing to do with
+    # this package: it starts no tasks at load, and the check passes everywhere
+    # else.
+    Aqua.test_all(ProbabilisticPowerFlow; persistent_tasks = !Sys.iswindows())
 end
 
 @testitem "JET static analysis" tags = [:quality] begin
