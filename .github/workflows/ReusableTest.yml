@@ -33,6 +33,11 @@ jobs:
     name: "Julia ${{ inputs.version }} - ${{ inputs.os }} - arch: ${{ inputs.arch }} - ${{ github.event_name }}"
     runs-on: ${{ inputs.os }}
     continue-on-error: ${{ inputs.allow_failure }}
+    env:
+      # The package server can advertise a registry version whose files are not
+      # on its storage yet, which kills every fresh CI environment with a 404.
+      # Conservative makes Pkg use the newest fully available version instead.
+      JULIA_PKG_SERVER_REGISTRY_PREFERENCE: conservative
 
     steps:
       - uses: actions/checkout@v7
