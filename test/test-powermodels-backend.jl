@@ -283,3 +283,80 @@ end
         @test_throws ArgumentError init_state(backend, [ComponentRef(:gen, gid, :pg)])
     end
 end
+
+@testitem "reactive load moves through the per-solve refresh" tags = [:integration] setup =
+    [PMCase5] begin
+    data = pm_case5()
+    backend = PowerModelsBackend(data)
+    ref = ComponentRef(:load, load_at(data, 5), :qd)
+    state = init_state(backend, [ref])
+
+    set_injections!(state, backend, [0.10])
+    @test solve!(state, backend).converged
+    low = extract(state, backend, VoltageMagnitude(5))
+
+    # a second solve on the same state exercises the reactive branch of the
+    # baked-delta refresh rather than a fresh instantiate
+    set_injections!(state, backend, [0.40])
+    @test solve!(state, backend).converged
+    high = extract(state, backend, VoltageMagnitude(5))
+    @test high < low   # more reactive load, lower voltage
+
+    fresh = init_state(backend, [ref])
+    set_injections!(fresh, backend, [0.40])
+    solve!(fresh, backend)
+    @test extract(fresh, backend, VoltageMagnitude(5)) ≈ high atol = 1e-10
+end
+
+@testitem "the backend declares warm start support" tags = [:integration] setup = [PMCase5] begin
+    struct PlainBackend <: ProbabilisticPowerFlow.AbstractBackend end
+
+    backends = Any[PowerModelsBackend(pm_case5()), PlainBackend()]
+    @test [supports_warmstart(b) for b in backends] == [true, false]
+end
+
+@testitem "network data is validated at construction" tags = [:integration] setup =
+    [PMCase5] begin
+    # a PV bus whose only generator is out of service cannot hold its setpoint
+    data = pm_case5()
+    data["gen"]["2"]["gen_status"] = 0
+    err = try
+        PowerModelsBackend(data)
+    catch e
+        e
+    end
+    @test err isa ArgumentError
+    @test occursin("no active generator", err.msg)
+
+    # parallel branches make a bus pair ambiguous, so a flow on it is refused
+    # rather than silently reported for one of the two
+    data = pm_case5()
+    data["branch"]["8"] = merge(data["branch"]["1"], Dict("index" => 8))
+    backend = PowerModelsBackend(data)
+    state = init_state(backend, ComponentRef[])
+    solve!(state, backend)
+    @test_throws ArgumentError extract(state, backend, BranchActivePower(1, 2))
+end
+
+@testitem "a throwing solver is recorded as divergence" tags = [:integration] setup =
+    [PMCase5] begin
+    import ProbabilisticPowerFlow as PPF
+
+    struct ExplodingSolver end
+    PPF.supports_pf_solver(::ExplodingSolver) = true
+    PPF.run_pf_solver!(state, b, ::ExplodingSolver, warmstart) = error("the solver blew up")
+
+    backend = PowerModelsBackend(pm_case5(); solver = ExplodingSolver())
+    state = init_state(backend, ComponentRef[])
+
+    # the contract says solve! never throws on a bad solve, it returns data
+    info = solve!(state, backend)
+    @test !info.converged
+    @test isnan(info.residual)
+
+    # the seam over a heterogeneous list: the bundled symbol and this solver are
+    # supported, an arbitrary object falls through to the generic refusal
+    solvers = Any[:nlsolve, ExplodingSolver(), 3.14]
+    @test [PPF.supports_pf_solver(s) for s in solvers] == [true, true, false]
+    @test_throws ArgumentError PowerModelsBackend(pm_case5(); solver = 3.14)
+end

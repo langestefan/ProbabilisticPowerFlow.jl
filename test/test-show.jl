@@ -121,3 +121,61 @@ end
         @test length(tree(x)) < 300
     end
 end
+
+@testitem "every quantity and method has a display" tags = [:unit, :fast] setup =
+    [ShowSetup] begin
+    using QuasiMonteCarlo: HaltonSample
+
+    @test line(VoltageAngle(3)) == "VoltageAngle(3)"
+    @test line(BranchActivePower(1, 3)) == "BranchActivePower(1, 3)"
+    @test line(GermVariable("a", Normal())) == "GermVariable(\"a\")"
+    @test occursin("GermVariable \"a\": ", tree(GermVariable("a", Normal())))
+    @test line(IndependentCopula()) == "IndependentCopula()"
+    @test line(GaussianCopula([1.0 0.2; 0.2 1.0])) == "GaussianCopula(d = 2)"
+
+    # the samplers without a failure policy list three fields, the wrapped
+    # QuasiMonteCarlo one names its point set
+    @test tree(SobolSampling(n = 8)) ==
+          "SobolSampling\n├ n: 8\n├ warmstart: :off\n└ keep_inputs: false"
+    @test occursin("├ warmstart: :sorted", tree(LatinHypercube(n = 8, warmstart = :sorted)))
+    @test occursin("├ sampler: HaltonSample", tree(QMCSampling(HaltonSample(); n = 8)))
+    @test line(QMCSampling(HaltonSample(); n = 8)) == "QMCSampling(n = 8)"
+
+    # solver names: a symbol prints as itself, an algorithm by the short name it
+    # carries, anything else by its type
+    struct NamelessSolver end
+    @test ProbabilisticPowerFlow.solver_name(:nlsolve) == ":nlsolve"
+    @test ProbabilisticPowerFlow.solver_name(NamelessSolver()) == "NamelessSolver"
+    @test ProbabilisticPowerFlow.solver_name((; name = :Fancy)) == "Fancy"
+
+    info = SolveInfo(true, 3, 1e-10)
+    @test line(info) == "SolveInfo(converged, 3 iterations, residual 1.0e-10)"
+    @test occursin("diverged", line(SolveInfo(false, 0, NaN)))
+end
+
+@testitem "the PowerModels backend hides its data dictionary" tags = [:integration] setup =
+    [ShowSetup, PMCase5] begin
+    import NonlinearSolve
+
+    data = pm_case5()
+    backend = PowerModelsBackend(data; solver = NonlinearSolve.NewtonRaphson())
+    state = init_state(backend, [ComponentRef(:load, load_at(data, 5), :pd)])
+
+    @test line(backend) == "PowerModelsBackend(5 buses)"
+    text = tree(backend)
+    @test occursin("├ buses: 5", text)
+    @test occursin("branches: 7", text)
+    @test occursin("├ solver: NewtonRaphson", text)
+    @test occursin("└ maxiter: 100", text)
+
+    @test occursin("5 buses, 1 injection slots, unsolved", line(state))
+    solve!(state, backend)
+    @test occursin("solved", line(state))
+    @test occursin("└ warm start available: true", tree(state))
+
+    # the network dictionary is megabytes on a real case and must never print
+    for x in (backend, state)
+        @test length(line(x)) < 100
+        @test length(tree(x)) < 400
+    end
+end

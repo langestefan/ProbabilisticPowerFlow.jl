@@ -126,3 +126,46 @@ end
     state2 = init_state(sane, ComponentRef[])
     @test solve!(state2, sane).converged
 end
+
+@testitem "every injection field writes to its own array" tags = [:unit, :fast] setup =
+    [Case5] begin
+    refs = [
+        ComponentRef(:load, "3", :pd),
+        ComponentRef(:load, "4", :qd),
+        ComponentRef(:gen, "2", :pg),
+    ]
+    state = init_state(backend, refs)
+    set_injections!(state, backend, [0.5, 0.2, 0.7])
+
+    @test state.pd[3] == 0.5
+    @test state.qd[4] == 0.2
+    @test state.pg[2] == 0.7
+    @test solve!(state, backend).converged
+
+    # the reactive load and the generation really move the solution
+    base = init_state(backend, ComponentRef[])
+    solve!(base, backend)
+    @test extract(state, backend, VoltageMagnitude(4)) !=
+          extract(base, backend, VoltageMagnitude(4))
+end
+
+@testitem "unsupported references are refused" tags = [:unit, :fast] setup = [Case5] begin
+    err = try
+        init_state(backend, [ComponentRef(:gen, "2", :qg)])
+    catch e
+        e
+    end
+    @test err isa ArgumentError
+    @test occursin("unsupported component reference", err.msg)
+    @test_throws ArgumentError init_state(backend, [ComponentRef(:branch, "1", :pd)])
+end
+
+@testitem "warm start support is declared per backend" tags = [:unit, :fast] setup = [Case5] begin
+    struct BareBackend <: ProbabilisticPowerFlow.AbstractBackend end
+
+    # asked over a heterogeneous list, so each answer comes from a real dispatch
+    # rather than from a constant the compiler folded away
+    backends = Any[backend, BareBackend()]
+    # the contract default is no warm start, so a backend opts in
+    @test [supports_warmstart(b) for b in backends] == [true, false]
+end

@@ -226,3 +226,34 @@ end
     @test r4.samples == r1.samples
     @test n_converged(r4) + length(r4.failures) == 300
 end
+
+@testitem "the matrix solve path records failures too" tags = [:integration] begin
+    using Distributions, Random
+
+    # :sorted and concurrent runs go through the matrix path, a different loop
+    # from the streaming one, and it must record divergence the same way
+    base = 4.4 .* [0.45, 0.40, 0.60]
+    vars = [
+        GermVariable("l$(bus)", Normal(base[k], 0.15base[k])) for (k, bus) in enumerate(3:5)
+    ]
+    assigns = [Assignment("l$(bus)", ComponentRef(:load, "$(bus)", :pd)) for bus = 3:5]
+    model = UncertaintyModel(vars, assigns, IndependentCopula())
+    prob =
+        PPFProblem(ReferenceBackend(case5(load_scale = 4.4)), model, [VoltageMagnitude(5)])
+
+    # :sorted serially and any method concurrently both take the matrix path
+    for (method, ntasks) in (
+        (MonteCarlo(n = 200, warmstart = :sorted), 1),
+        (MonteCarlo(n = 200, keep_inputs = true), 2),
+    )
+        r = solve(prob, method; rng = Xoshiro(2026), ntasks)
+        @test !isempty(r.failures)
+        @test n_converged(r) + length(r.failures) == r.n_samples
+        @test r.n_solves == r.n_samples
+        for fs in r.failures
+            @test 1 <= fs.index <= r.n_samples
+            @test length(fs.injections) == 3
+            @test !fs.info.converged
+        end
+    end
+end

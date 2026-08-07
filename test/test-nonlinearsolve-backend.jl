@@ -115,3 +115,35 @@ end
     @test_throws ArgumentError PowerModelsBackend(data; solver = :bogus)
     @test_throws ArgumentError PowerModelsBackend(data; solver = 42)
 end
+
+@testitem "NonlinearSolve warm starts from an unsolved state" tags =
+    [:integration, :nonlinearsolve] setup = [PMCase5] begin
+    import NonlinearSolve
+    import ProbabilisticPowerFlow as PPF
+
+    data = pm_case5()
+    backend = PowerModelsBackend(data; solver = NonlinearSolve.NewtonRaphson())
+    solvers = Any[NonlinearSolve.NewtonRaphson(), NonlinearSolve.TrustRegion(), :nlsolve]
+    @test all(PPF.supports_pf_solver(s) for s in solvers)
+
+    # a state that never converged carries no solution vector, so the starting
+    # point comes from the voltages in its data dictionary. That is the path a
+    # dataset starting point takes.
+    seed = init_state(backend, ComponentRef[])
+    for bus in values(seed.data["bus"])
+        bus["vm"] = 1.02
+        bus["va"] = 0.01
+    end
+    @test !seed.has_last
+
+    state = init_state(backend, [ComponentRef(:load, load_at(data, 5), :pd)])
+    set_injections!(state, backend, [0.60])
+    info = solve!(state, backend; warmstart = seed)
+    @test info.converged
+
+    cold = init_state(backend, [ComponentRef(:load, load_at(data, 5), :pd)])
+    set_injections!(cold, backend, [0.60])
+    solve!(cold, backend)
+    @test extract(state, backend, VoltageMagnitude(5)) ≈
+          extract(cold, backend, VoltageMagnitude(5)) atol = 1e-8
+end
