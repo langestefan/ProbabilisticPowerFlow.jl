@@ -378,4 +378,50 @@ function PPF.extract(s::PMState, b::PMBackend, q::BranchActivePower)
     return Float64(at_from ? flow["pf"] : flow["pt"])
 end
 
+# Display. The network data dictionary is megabytes, so neither the backend nor the
+# state ever prints it. See src/show.jl for the tree helpers.
+network_counts(data) = [
+    "buses: $(length(data["bus"]))",
+    "branches: $(length(data["branch"]))",
+    "generators: $(length(data["gen"]))",
+    "loads: $(length(data["load"]))",
+]
+
+Base.show(io::IO, b::PMBackend) =
+    print(io, "PowerModelsBackend(", length(b.data["bus"]), " buses)")
+
+Base.show(io::IO, ::MIME"text/plain", b::PMBackend) = PPF.show_tree(
+    io,
+    "PowerModelsBackend",
+    [
+        "network: $(get(b.data, "name", "unnamed"))" => network_counts(b.data),
+        "solver: $(PPF.solver_name(b.solver))",
+        "tol: $(b.tol)",
+        "maxiter: $(b.maxiter)",
+    ],
+)
+
+Base.show(io::IO, s::PMState) = print(
+    io,
+    "PMState(",
+    length(s.data["bus"]),
+    " buses, ",
+    length(s.slots),
+    " injection slots, ",
+    s.solved ? "solved" : "unsolved",
+    ")",
+)
+
+Base.show(io::IO, ::MIME"text/plain", s::PMState) = PPF.show_tree(
+    io,
+    "PowerModelsBackend state",
+    [
+        "network: $(get(s.data, "name", "unnamed"))" => network_counts(s.data),
+        "injection slots: $(length(s.slots))",
+        "solved: $(s.solved)",
+        "solver data built: $(s.pf_data !== nothing)",
+        "warm start available: $(s.has_last)",
+    ],
+)
+
 end

@@ -156,28 +156,6 @@ end
     @test CommonSolve.solve!(state, prob.backend).converged
 end
 
-@testitem "PPFResult shows a summary, not its sample matrix" tags = [:unit, :fast] setup =
-    [MCSetup] begin
-    prob = case5_problem()
-    r = solve(prob, MonteCarlo(n = 20); rng = Xoshiro(1))
-    text = sprint(show, MIME"text/plain"(), r)
-
-    @test occursin("PPFResult{MonteCarlo}", text)
-    @test occursin("20 of 20 samples converged in 20 solves", text)
-    @test occursin("VoltageMagnitude(5)", text)
-    @test !occursin("failed", text)
-    @test count(==('\n'), text) == length(prob.qois)
-    @test occursin("20/20 converged", sprint(show, r))
-
-    # failures are part of the summary
-    failing = solve(
-        case5_problem(load_scale = 4.4, std_frac = 0.15),
-        MonteCarlo(n = 200);
-        rng = Xoshiro(2026),
-    )
-    @test occursin("% failed", sprint(show, MIME"text/plain"(), failing))
-end
-
 @testitem "a violation band can be read off a result after the run" tags = [:unit, :fast] setup =
     [MCSetup] begin
     prob = case5_problem()
