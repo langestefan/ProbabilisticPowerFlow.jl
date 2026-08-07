@@ -9,10 +9,18 @@ passed to [`solve`](@ref).
 abstract type AbstractPPFMethod end
 
 """
-    solve(prob::PPFProblem, method::AbstractPPFMethod; kwargs...) -> PPFResult
+    solve(prob::PPFProblem, method::AbstractPPFMethod; rng, ntasks = 1) -> PPFResult
 
 Estimate the QoIs of `prob` with `method`. (Framework-level `solve` versus the
 backend-level in-place [`solve!`](@ref): one call of `solve` triggers many
 deterministic `solve!` calls.)
+
+With `ntasks > 1` the power flow solves run on that many concurrent tasks.
+Parallelism never changes which samples are drawn: a seed produces the same
+u points at every `ntasks`, and with `warmstart = :off` the result is identical
+to the serial run. Warm-start chains run inside each task's contiguous block of
+the solve order. Every task solves on its own state from [`init_state`](@ref),
+so backends need nothing beyond independent states. Threads must be available,
+for example through `julia -t auto`, or the tasks share one thread.
 """
 function solve end

@@ -42,6 +42,7 @@ function solve(
     prob::PPFProblem,
     method::QMCSampling;
     rng::AbstractRNG = Random.default_rng(),
+    ntasks::Integer = 1,
 )
     ext = Base.get_extension(@__MODULE__, :PPFQuasiMonteCarloExt)
     ext === nothing && throw(
@@ -50,5 +51,5 @@ function solve(
             "`using QuasiMonteCarlo` first.",
         ),
     )
-    return ext.solve_qmc(prob, method)
+    return ext.solve_qmc(prob, method, ntasks)
 end

@@ -33,8 +33,9 @@ function solve(
     prob::PPFProblem,
     method::LatinHypercube;
     rng::AbstractRNG = Random.default_rng(),
+    ntasks::Integer = 1,
 )
     check_warmstart(method.warmstart, prob.backend)
     U = lhs_points(rng, germ_dim(prob.model), method.n)
-    return solve_u_matrix(prob, method, U)
+    return solve_u_matrix(prob, method, U; ntasks)
 end

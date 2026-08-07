@@ -7,7 +7,7 @@ import ProbabilisticPowerFlow as PPF
 # dimension. The shift preserves the low-discrepancy structure, makes the
 # estimate unbiased, and ties it to the rng seed. Clamped away from 0 and 1 so
 # marginal quantiles of unbounded distributions stay finite.
-function solve_sobol(prob::PPF.PPFProblem, method::PPF.SobolSampling, rng)
+function solve_sobol(prob::PPF.PPFProblem, method::PPF.SobolSampling, rng, ntasks)
     PPF.check_warmstart(method.warmstart, prob.backend)
     d = PPF.germ_dim(prob.model)
     n = method.n
@@ -22,7 +22,7 @@ function solve_sobol(prob::PPF.PPFProblem, method::PPF.SobolSampling, rng)
         end
     end
     clamp!(U, eps(), 1 - eps())
-    return PPF.solve_u_matrix(prob, method, U)
+    return PPF.solve_u_matrix(prob, method, U; ntasks)
 end
 
 end

@@ -53,6 +53,10 @@ abstract type AbstractBackend end
 Allocate and return a mutable solver state. The backend resolves each `ComponentRef`
 to an internal slot once, so that `set_injections!` is an allocation-free write per
 sample. Must error on a ref that does not exist in the network.
+
+States from separate `init_state` calls must be independent: concurrent solves on
+distinct states of one backend must be safe, with the backend treated as read only
+after construction. Concurrent sampling relies on this.
 """
 function init_state end
 

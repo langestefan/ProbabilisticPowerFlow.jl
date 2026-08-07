@@ -1,6 +1,6 @@
 # Internal machinery shared by the sampling methods. Methods that draw all their
 # u samples up front land in solve_u_matrix. MonteCarlo streams its draws in
-# :off and :chain mode and comes here only for :sorted.
+# serial :off and :chain mode and comes here otherwise.
 
 function check_failure_policy(policy::Symbol)
     policy == :record || throw(
@@ -29,15 +29,29 @@ function check_warmstart(mode::Symbol, backend::AbstractBackend)
     return nothing
 end
 
+function check_ntasks(ntasks::Integer)
+    ntasks >= 1 || throw(ArgumentError("ntasks must be at least 1, got $(ntasks)"))
+    return nothing
+end
+
 # Solves every column of `U` and collects the results. `method` provides the
 # `warmstart` mode and is stored in the returned PPFResult. In :sorted mode the
 # samples are solved in order of total injection, so consecutive solves are close
 # in injection space, and `sample_indices` maps each stored column back to its
 # draw index.
+#
+# With `ntasks > 1` the solves run on that many concurrent tasks. The u points
+# are identical to the serial run because the draws happen before this function,
+# and every task works on its own state from `init_state`, so the backend
+# contract requires nothing beyond independent states. Warm-start chains run
+# inside each task's contiguous block of the solve order and restart cold at
+# block boundaries. Results are packed in draw-index order, which for :off makes
+# the parallel result identical to the serial one.
 function solve_u_matrix(
     prob::PPFProblem,
     method::AbstractPPFMethod,
-    U::AbstractMatrix{Float64},
+    U::AbstractMatrix{Float64};
+    ntasks::Integer = 1,
 )
     model = prob.model
     backend = prob.backend
@@ -45,10 +59,9 @@ function solve_u_matrix(
     n = size(U, 2)
     size(U, 1) == d ||
         throw(DimensionMismatch("U has $(size(U, 1)) rows, expected germ dimension $(d)"))
+    check_ntasks(ntasks)
     n_inj = length(model.assignments)
     n_qois = length(prob.qois)
-
-    state = init_state(backend, targets(model))
 
     X = Matrix{Float64}(undef, n_inj, n)
     germ = Vector{Float64}(undef, d)
@@ -59,6 +72,26 @@ function solve_u_matrix(
     # injection space.
     order = method.warmstart == :sorted ? sortperm(vec(sum(X, dims = 1))) : (1:n)
 
+    if ntasks == 1
+        return solve_serial(prob, method, U, X, order)
+    end
+    return solve_tasks(prob, method, U, X, order, ntasks)
+end
+
+function solve_serial(
+    prob::PPFProblem,
+    method::AbstractPPFMethod,
+    U::AbstractMatrix{Float64},
+    X::Matrix{Float64},
+    order,
+)
+    backend = prob.backend
+    d = size(U, 1)
+    n = size(U, 2)
+    n_inj = size(X, 1)
+    n_qois = length(prob.qois)
+
+    state = init_state(backend, targets(prob.model))
     u = Vector{Float64}(undef, d)
     x = Vector{Float64}(undef, n_inj)
     samples = Matrix{Float64}(undef, n_qois, n)
@@ -66,7 +99,6 @@ function solve_u_matrix(
     u_kept = method.keep_inputs ? Matrix{Float64}(undef, d, n) : nothing
     failures = FailedSample[]
     n_converged = 0
-    n_solves = 0
     have_solution = false
 
     for i in order
@@ -75,7 +107,6 @@ function solve_u_matrix(
         set_injections!(state, backend, x)
         warm = method.warmstart != :off && have_solution ? state : nothing
         info = solve!(state, backend; warmstart = warm)
-        n_solves += 1
         if info.converged
             have_solution = true
             n_converged += 1
@@ -100,6 +131,76 @@ function solve_u_matrix(
         failures,
         u_kept === nothing ? nothing : u_kept[:, 1:n_converged],
         n,
-        n_solves,
+        n,
+    )
+end
+
+function solve_tasks(
+    prob::PPFProblem,
+    method::AbstractPPFMethod,
+    U::AbstractMatrix{Float64},
+    X::Matrix{Float64},
+    order,
+    ntasks::Integer,
+)
+    backend = prob.backend
+    model = prob.model
+    d = size(U, 1)
+    n = size(U, 2)
+    n_inj = size(X, 1)
+    n_qois = length(prob.qois)
+
+    # Without warm chains the chunks exist only for load balancing, so several
+    # per task smooth out the cost difference between converged and diverged
+    # solves. With chains, one contiguous block per task keeps the chains long.
+    nchunks = method.warmstart == :off ? min(4 * ntasks, n) : min(ntasks, n)
+    bounds = round.(Int, range(0, n; length = nchunks + 1))
+    chunks = [order[(bounds[c]+1):bounds[c+1]] for c = 1:nchunks if bounds[c] < bounds[c+1]]
+
+    values = Matrix{Float64}(undef, n_qois, n)
+    # a plain Bool vector, not a BitVector: tasks write distinct indices
+    # concurrently and BitVector packs bits into shared words
+    converged = fill(false, n)
+    failures_per = [FailedSample[] for _ in eachindex(chunks)]
+
+    tasks = map(eachindex(chunks)) do c
+        Threads.@spawn begin
+            chunk = chunks[c]
+            state = init_state(backend, targets(model))
+            u = Vector{Float64}(undef, d)
+            x = Vector{Float64}(undef, n_inj)
+            have_solution = false
+            for i in chunk
+                copyto!(u, view(U, :, i))
+                copyto!(x, view(X, :, i))
+                set_injections!(state, backend, x)
+                warm = method.warmstart != :off && have_solution ? state : nothing
+                info = solve!(state, backend; warmstart = warm)
+                if info.converged
+                    have_solution = true
+                    converged[i] = true
+                    for (k, q) in enumerate(prob.qois)
+                        values[k, i] = extract(state, backend, q)
+                    end
+                else
+                    have_solution = false
+                    push!(failures_per[c], FailedSample(i, copy(u), copy(x), info))
+                end
+            end
+        end
+    end
+    foreach(wait, tasks)
+
+    keep = findall(converged)
+    failures = sort!(reduce(vcat, failures_per; init = FailedSample[]); by = f -> f.index)
+    return PPFResult(
+        method,
+        prob.qois,
+        values[:, keep],
+        keep,
+        failures,
+        method.keep_inputs ? U[:, keep] : nothing,
+        n,
+        n,
     )
 end

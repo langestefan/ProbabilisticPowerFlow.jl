@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning].
 
 ## [Unreleased]
 
+- Concurrent sampling: every sampling method accepts `ntasks` in `solve`, running
+  the power flow solves on that many tasks over contiguous blocks of the solve
+  order. A seed produces the same u points at every `ntasks`, with
+  `warmstart = :off` the result is identical to the serial run, and warm-start
+  chains run per task block. Backends must support concurrent solves on
+  independent states, which `init_state` now documents
 - Copulas.jl integration: any copula from Copulas.jl works directly as the germ
   dependence of an `UncertaintyModel` via the deterministic inverse Rosenblatt
   transform, so Clayton, Gumbel, Frank, t, and empirical copulas compose with

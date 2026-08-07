@@ -35,9 +35,11 @@ function solve(
     prob::PPFProblem,
     method::MonteCarlo;
     rng::AbstractRNG = Random.default_rng(),
+    ntasks::Integer = 1,
 )
     check_failure_policy(method.failure_policy)
     check_warmstart(method.warmstart, prob.backend)
+    check_ntasks(ntasks)
 
     model = prob.model
     backend = prob.backend
@@ -48,17 +50,17 @@ function solve(
 
     u = Vector{Float64}(undef, d)
 
-    # In :sorted mode all draws happen up front so the solve order can differ
-    # from the draw order. The draws go through the same rand! call on the same
-    # buffer as the streaming modes, so a given seed produces the same samples in
-    # every mode.
-    if method.warmstart == :sorted
+    # For :sorted mode and for concurrent solving all draws happen up front, so
+    # the solve order can differ from the draw order. The draws go through the
+    # same rand! call on the same buffer as the streaming path, so a given seed
+    # produces the same samples in every mode and at every ntasks.
+    if method.warmstart == :sorted || ntasks > 1
         U = Matrix{Float64}(undef, d, n)
         for i = 1:n
             rand!(rng, u)
             U[:, i] = u
         end
-        return solve_u_matrix(prob, method, U)
+        return solve_u_matrix(prob, method, U; ntasks)
     end
 
     state = init_state(backend, targets(model))

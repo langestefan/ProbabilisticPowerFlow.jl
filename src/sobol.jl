@@ -23,10 +23,11 @@ function solve(
     prob::PPFProblem,
     method::SobolSampling;
     rng::AbstractRNG = Random.default_rng(),
+    ntasks::Integer = 1,
 )
     ext = Base.get_extension(@__MODULE__, :PPFSobolExt)
     ext === nothing && throw(
         ArgumentError("SobolSampling requires the Sobol package. Run `using Sobol` first."),
     )
-    return ext.solve_sobol(prob, method, rng)
+    return ext.solve_sobol(prob, method, rng, ntasks)
 end

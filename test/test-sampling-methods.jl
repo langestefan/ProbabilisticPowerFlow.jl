@@ -185,3 +185,44 @@ end
     @test size(r.u) == (3, n_converged(r))
     @test_throws ArgumentError solve(prob, SobolSample(); n = 10, warmstart = :backwards)
 end
+
+@testitem "concurrent solving changes nothing but the wall clock" tags = [:integration] setup =
+    [MCSetup] begin
+    prob = case5_problem()
+
+    # with :off the parallel result is identical to the serial one
+    for method in (
+        MonteCarlo(n = 200, keep_inputs = true),
+        LatinHypercube(n = 200, keep_inputs = true),
+    )
+        r1 = solve(prob, method; rng = Xoshiro(31))
+        r4 = solve(prob, method; rng = Xoshiro(31), ntasks = 4)
+        @test r1.samples == r4.samples
+        @test r1.sample_indices == r4.sample_indices
+        @test r1.u == r4.u
+        @test r4.n_solves == 200
+    end
+
+    # warm-start chains run per task block, the solutions agree to tolerance
+    r1 = solve(prob, MonteCarlo(n = 200, warmstart = :chain); rng = Xoshiro(31))
+    r4 = solve(prob, MonteCarlo(n = 200, warmstart = :chain); rng = Xoshiro(31), ntasks = 4)
+    @test r1.sample_indices == r4.sample_indices
+    @test isapprox(r1.samples, r4.samples; atol = 1e-6)
+
+    # :sorted composes with tasks
+    rs =
+        solve(prob, MonteCarlo(n = 200, warmstart = :sorted); rng = Xoshiro(31), ntasks = 3)
+    @test sort(rs.sample_indices) == 1:200
+
+    @test_throws ArgumentError solve(prob, MonteCarlo(n = 10); ntasks = 0)
+end
+
+@testitem "concurrent solving records failures" tags = [:integration] setup = [MCSetup] begin
+    prob = case5_problem(load_scale = 4.4, std_frac = 0.15)
+    r1 = solve(prob, MonteCarlo(n = 300); rng = Xoshiro(2026))
+    r4 = solve(prob, MonteCarlo(n = 300); rng = Xoshiro(2026), ntasks = 4)
+    @test !isempty(r4.failures)
+    @test [f.index for f in r4.failures] == [f.index for f in r1.failures]
+    @test r4.samples == r1.samples
+    @test n_converged(r4) + length(r4.failures) == 300
+end
