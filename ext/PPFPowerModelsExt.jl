@@ -105,6 +105,14 @@ mutable struct PMState
     solved::Bool
     flows::Union{Nothing,Dict{String,Any}}
     pf_data::Union{Nothing,PM.PowerFlowData}
+    # snapshot of the net-injection and setpoint arrays at instantiate time plus
+    # each slot's position in them, so the per-solve refresh is a copy and an
+    # O(slots) update instead of a full Dict-based recomputation
+    p_base::Vector{Float64}
+    q_base::Vector{Float64}
+    vm_base::Vector{Float64}
+    slot_rows::Vector{Tuple{Int,Bool,Float64}}   # (row, is_p, sign)
+    x_base::Vector{Float64}
 end
 
 function PPF.init_state(b::PMBackend, refs::AbstractVector{ComponentRef})
@@ -154,7 +162,18 @@ function PPF.init_state(b::PMBackend, refs::AbstractVector{ComponentRef})
         end
         slots[j] = (comp, String(ref.field))
     end
-    return PMState(work, slots, false, nothing, nothing)
+    return PMState(
+        work,
+        slots,
+        false,
+        nothing,
+        nothing,
+        Float64[],
+        Float64[],
+        Float64[],
+        Tuple{Int,Bool,Float64}[],
+        Float64[],
+    )
 end
 
 function PPF.set_injections!(state::PMState, ::PMBackend, x::AbstractVector{<:Real})
@@ -189,45 +208,57 @@ function write_solution!(data::Dict{String,Any}, pf_data, x::AbstractVector{Floa
     return data
 end
 
-# Restores an existing PowerFlowData to the state instantiate_pf_data would build
-# from the current network data, without redoing the topology work. Two parts:
-#
-#  1. The net bus injections: the sign-flipped bus deltas with the slack and PV
-#     generator terms removed, because the solver treats those as unknowns.
-#  2. The working buffers x0, vm_idx, va_idx, p_inject_idx, and q_inject_idx.
-#     The solver mutates them in place and its Jacobian callback reads vm_idx and
-#     va_idx directly, so leftovers from the previous solve would make the Newton
-#     path history dependent and cold solves nondeterministic.
-#
-# The admittance matrix, the Jacobian sparsity pattern, and the bus types depend
-# only on topology and setpoints, which the backend contract holds fixed.
-function refresh_pf_data!(pf_data::PM.PowerFlowData, data::Dict{String,Any})
-    p_delta, q_delta = PM.calc_bus_injection(data)
-    for (_, gen) in data["gen"]
-        gen["gen_status"] == 0 && continue
-        gen_bus = data["bus"]["$(gen["gen_bus"])"]
-        if is_slack_bus(gen_bus)
-            p_delta[gen_bus["index"]] -= gen["pg"]
-            q_delta[gen_bus["index"]] -= gen["qg"]
-        elseif is_pv_bus(gen_bus)
-            q_delta[gen_bus["index"]] -= gen["qg"]
+# Runs once, right after instantiate_pf_data built its arrays from the current
+# network data: snapshots the net-injection and voltage-setpoint arrays and
+# resolves every slot to its row in them. Setpoints and every non-slot injection
+# are fixed by the backend contract, so the snapshot stays valid for the life of
+# the state.
+function bake_deltas!(state::PMState)
+    pf = state.pf_data
+    state.p_base = copy(pf.p_delta_base_idx)
+    state.q_base = copy(pf.q_delta_base_idx)
+    state.vm_base = copy(pf.vm_idx)
+    resize!(state.slot_rows, length(state.slots))
+    resize!(state.x_base, length(state.slots))
+    for (j, (comp, field)) in enumerate(state.slots)
+        bus = haskey(comp, "load_bus") ? comp["load_bus"] : comp["gen_bus"]
+        row = pf.am.bus_to_idx[bus]
+        # p_delta is pg minus pd and the idx arrays hold the sign-flipped delta,
+        # so pd and qd enter with +1 and pg with -1
+        is_p = field != "qd"
+        sign = field == "pg" ? -1.0 : 1.0
+        state.slot_rows[j] = (row, is_p, sign)
+        state.x_base[j] = comp[field]::Float64
+    end
+    return state
+end
+
+# Restores the PowerFlowData to the state instantiate_pf_data built, then applies
+# the slot differences. An O(buses) copy plus an O(slots) update, replacing the
+# Dict-heavy full recomputation through calc_bus_injection, which allocated about
+# 2 MB per solve on a 1354-bus case and throttled concurrent sampling. The
+# working buffers are reset because the solver mutates them in place and its
+# Jacobian callback reads vm_idx and va_idx directly, so leftovers from the
+# previous solve would make the Newton path history dependent.
+function refresh_pf_data!(state::PMState)
+    pf = state.pf_data
+    copyto!(pf.p_delta_base_idx, state.p_base)
+    copyto!(pf.q_delta_base_idx, state.q_base)
+    for (j, (comp, field)) in enumerate(state.slots)
+        row, is_p, sign = state.slot_rows[j]
+        diff = sign * (comp[field]::Float64 - state.x_base[j])
+        if is_p
+            pf.p_delta_base_idx[row] += diff
+        else
+            pf.q_delta_base_idx[row] += diff
         end
     end
-    for (i, bid) in enumerate(pf_data.am.idx_to_bus)
-        pf_data.p_delta_base_idx[i] = -p_delta[bid]
-        pf_data.q_delta_base_idx[i] = -q_delta[bid]
-    end
-    fill!(pf_data.x0, 0.0)
-    fill!(pf_data.p_inject_idx, 0.0)
-    fill!(pf_data.q_inject_idx, 0.0)
-    fill!(pf_data.vm_idx, 1.0)
-    fill!(pf_data.va_idx, 0.0)
-    for (_, bus) in data["bus"]
-        if is_pv_bus(bus) || is_slack_bus(bus)
-            pf_data.vm_idx[pf_data.am.bus_to_idx[bus["index"]]] = bus["vm"]
-        end
-    end
-    return pf_data
+    fill!(pf.x0, 0.0)
+    fill!(pf.p_inject_idx, 0.0)
+    fill!(pf.q_inject_idx, 0.0)
+    copyto!(pf.vm_idx, state.vm_base)
+    fill!(pf.va_idx, 0.0)
+    return state
 end
 
 function PPF.solve!(state::PMState, b::PMBackend; warmstart = nothing)
@@ -250,8 +281,9 @@ function PPF.solve!(state::PMState, b::PMBackend; warmstart = nothing)
     info = try
         if state.pf_data === nothing
             state.pf_data = PM.instantiate_pf_data(state.data)
+            bake_deltas!(state)
         else
-            refresh_pf_data!(state.pf_data, state.data)
+            refresh_pf_data!(state)
         end
         res = PM._compute_ac_pf(
             state.pf_data;

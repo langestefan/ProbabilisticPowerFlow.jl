@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning].
 
 ## [Unreleased]
 
+- The PowerModels backend bakes the net-injection arrays at the first solve and
+  refreshes them per solve as a copy plus an O(slots) update. The refresh went
+  from about 2 MB of Dict allocations per solve to zero, which mattered most for
+  concurrent sampling
 - Concurrent sampling: every sampling method accepts `ntasks` in `solve`, running
   the power flow solves on that many tasks over contiguous blocks of the solve
   order. A seed produces the same u points at every `ntasks`, with
