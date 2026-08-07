@@ -177,3 +177,29 @@ end
     )
     @test occursin("% failed", sprint(show, MIME"text/plain"(), failing))
 end
+
+@testitem "a violation band can be read off a result after the run" tags = [:unit, :fast] setup =
+    [MCSetup] begin
+    prob = case5_problem()
+    declared = ViolationEvent(VoltageMagnitude(5), 0.95, 1.05)
+    r = solve(prob, MonteCarlo(n = 300); rng = Xoshiro(7))
+
+    # a band that was never declared is derived from the samples of the quantity
+    wide = ViolationEvent(VoltageMagnitude(5), 0.9, 1.1)
+    vm = qoi_samples(r, VoltageMagnitude(5))
+    @test violation_probability(r, wide) == count(x -> !(0.9 <= x <= 1.1), vm) / length(vm)
+
+    # the declared event still reads its own recorded row, a view rather than a
+    # derived vector
+    @test qoi_samples(r, declared) isa SubArray
+    @test violation_probability(r, declared) ≈ mean(qoi_samples(r, declared))
+
+    # a band on a quantity the result does not hold has nothing to derive from
+    err = try
+        violation_probability(r, ViolationEvent(VoltageMagnitude(4), 0.9, 1.1))
+    catch e
+        e
+    end
+    @test err isa ArgumentError
+    @test occursin("nor its quantity", err.msg)
+end

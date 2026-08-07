@@ -42,6 +42,10 @@ Indicator QoI: 1.0 when `qoi` falls outside `[lo, hi]`, 0.0 otherwise. It is a
 first-class QoI rather than post-processing, so that rare-event methods such as
 importance sampling and subset simulation can dispatch on it and target the event.
 Its Monte Carlo mean is the violation probability.
+
+Declaring the event is what lets a method target it. Reading one back does not need
+it declared: a band on a quantity the result already holds is derived from that
+quantity's samples, see [`qoi_samples`](@ref).
 """
 struct ViolationEvent{Q<:AbstractQoI} <: AbstractQoI
     qoi::Q

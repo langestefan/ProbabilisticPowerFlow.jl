@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning].
 
 ## [Unreleased]
 
+- A violation band can be read off a result after the run. `violation_probability`
+  and `qoi_samples` derive a `ViolationEvent` from the samples of the quantity it
+  bounds, so several bands come off one run with no new solves. Declaring the
+  event up front is still what lets a rare-event method target it
 - A `PPFResult` displays as a summary rather than as its full sample matrix
 - Nataf correction for Pearson correlation targets:
   `GaussianCopula(R, variables; correlation = :pearson)` maps a Pearson target on
