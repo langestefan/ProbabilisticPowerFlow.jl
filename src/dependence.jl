@@ -20,9 +20,6 @@ Spearman-mapped like the built-in [`GaussianCopula`](@ref). For plain Gaussian
 dependence prefer the built-in, which caches its Cholesky factor. Copulas.jl also
 exports names `GaussianCopula` and `IndependentCopula`, so qualify those names
 when both packages are loaded.
-
-The remaining future subtype is a Nataf-corrected Gaussian copula for Pearson
-targets.
 """
 abstract type AbstractDependence end
 
@@ -76,9 +73,10 @@ according to `correlation`:
     transforms.
   - `:gaussian`: `R` is used directly as the copula parameter.
 
-`:pearson` is deliberately rejected: matching Pearson correlation in physical space
-requires an iterative Nataf correction per marginal family, which is not implemented
-yet, and silently reinterpreting the matrix is how benchmark results go wrong.
+A Pearson target needs the marginals, because the copula parameter that induces it
+depends on them. Pass them as a second argument, which selects the Nataf correction:
+`GaussianCopula(R, variables; correlation = :pearson)`. This constructor never
+reinterprets a matrix silently, since that is how benchmark results go wrong.
 
 Positive semi-definiteness is validated *after* the mapping. On failure the error
 names the offending eigenvalue. Projection to the nearest PSD matrix is never done
@@ -101,9 +99,10 @@ function GaussianCopula(R::AbstractMatrix{<:Real}; correlation::Symbol = :spearm
     elseif correlation == :pearson
         throw(
             ArgumentError(
-                "correlation = :pearson requires the Nataf correction, which is not " *
-                "implemented. Use :spearman or supply the copula parameter directly " *
-                "via :gaussian",
+                "correlation = :pearson needs the marginals, because the Nataf " *
+                "correction from a Pearson target to the copula parameter depends " *
+                "on them. Pass them as a second argument: " *
+                "GaussianCopula(R, variables; correlation = :pearson)",
             ),
         )
     else

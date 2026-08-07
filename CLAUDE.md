@@ -34,11 +34,13 @@ Key seams (one file per concern in `src/`, flat includes):
   re-verify before widening. Copier-managed `TestOnPRs.yml` path filters do not
   include `ext/**`, so a PR touching only `ext/` skips PR CI. Do not hand-edit the
   workflow; the Test.yml run on merge to main covers it.
-- **Uncertainty model** (`uncertainty.jl`, `dependence.jl`, `transforms.jl`): the
-  copula always lives on the germ, never on transformed outputs. Correlation input is
-  Spearman by default. `:pearson` is rejected until the Nataf correction exists —
-  never silently reinterpret. Validation throws descriptive errors: PSD is checked
-  after the Spearman→Gaussian mapping, and the error names the offending eigenvalue.
+- **Uncertainty model** (`uncertainty.jl`, `dependence.jl`, `transforms.jl`, `nataf.jl`):
+  the copula always lives on the germ, never on transformed outputs. Correlation input
+  is Spearman by default. `:pearson` needs the marginals, so it is only reachable
+  through `GaussianCopula(R, variables; correlation = :pearson)`, which runs the Nataf
+  correction in `nataf.jl` — never silently reinterpret a matrix. Validation throws
+  descriptive errors: PSD is checked after the mapping to the copula parameter, and
+  the error names the offending eigenvalue.
 - **Methods** (`methods.jl`, `monte_carlo.jl`): subtypes of `AbstractPPFMethod`. They
   draw `u` and call only `to_physical!`, so samplers and dependence structures
   compose freely. `PPFResult.n_solves` counts every deterministic solve and is the
