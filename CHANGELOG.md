@@ -7,6 +7,7 @@ and this project adheres to [Semantic Versioning].
 
 ## [Unreleased]
 
+- A `PPFResult` displays as a summary rather than as its full sample matrix
 - Nataf correction for Pearson correlation targets:
   `GaussianCopula(R, variables; correlation = :pearson)` maps a Pearson target on
   the germ to the copula parameter that induces it, given the marginals. The
