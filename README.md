@@ -66,12 +66,34 @@ julia> model = UncertaintyModel(
 
 julia> voltage_violation = ViolationEvent(VoltageMagnitude(5), 0.95, 1.05);
 
-julia> prob = PPFProblem(ReferenceBackend(case5()), model, [VoltageMagnitude(5), voltage_violation]);
+julia> prob = PPFProblem(ReferenceBackend(case5()), model, [VoltageMagnitude(5), voltage_violation])
+PPFProblem
+├ backend: ReferenceBackend(5 buses)
+├ model: UncertaintyModel(2 germ variables, 2 assignments)
+│ ├ germ variables: 2
+│ │ ├ load3: Normal{Float64}(μ=1.1, σ=0.12)
+│ │ └ load5: Normal{Float64}(μ=1.5, σ=0.18)
+│ ├ assignments: 2
+│ │ ├ "load3" → load["3"].pd
+│ │ └ "load5" → load["5"].pd
+│ └ dependence: GaussianCopula(d = 2)
+└ quantities of interest: 2
+  ├ VoltageMagnitude(5)
+  └ ViolationEvent(VoltageMagnitude(5), 0.95, 1.05)
 
 julia> result = solve(prob, MonteCarlo(n = 2000); rng = Xoshiro(1))
-PPFResult{MonteCarlo}: 2000 of 2000 samples converged in 2000 solves
-  VoltageMagnitude(5)
-  ViolationEvent{VoltageMagnitude}(VoltageMagnitude(5), 0.95, 1.05)
+PPFResult{MonteCarlo}
+├ method: MonteCarlo(n = 2000)
+│ ├ n: 2000
+│ ├ failure_policy: :record
+│ ├ warmstart: :off
+│ └ keep_inputs: false
+├ samples: 2000 converged of 2000, in 2000 solves
+├ failures: none
+├ inputs kept: no
+└ quantities of interest: 2
+  ├ VoltageMagnitude(5)
+  └ ViolationEvent(VoltageMagnitude(5), 0.95, 1.05)
 
 # compute the expected voltage (mean) at bus 5
 julia> mean(result, VoltageMagnitude(5))
