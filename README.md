@@ -33,6 +33,10 @@ flowchart LR
     Q --> S["statistics"]
 ```
 
+As you can see, `ProbabilisticPowerFlow.jl` does nothing new, it just wraps existing
+pieces in the Julia ecosystem together in a way that is convenient for uncertainty
+quantification in power flow problems.
+
 The solver state is built once and reused, so a sample costs one injection update and
 one solve. The `d` basic random variables driving that chain are the *germ*, declared as
 `GermVariable`s, each with a marginal from
@@ -86,8 +90,8 @@ julia> violation_probability(result, ViolationEvent(VoltageMagnitude(5), 0.96, 1
 0.147
 ```
 
-Diverged solves are also explicitly recorded: they land in `result.failures` with the
-`u`-point and the injections that occurred for that solve.
+Diverged solves are also explicitly recorded, they are stored in `result.failures` with
+the `u`-point and the injections that occurred for that solve.
 
 ## Sampling methods
 
@@ -120,9 +124,18 @@ backend = PowerModelsBackend(data; solver = NewtonRaphson())
 result = solve(prob, MonteCarlo(n = 1000, warmstart = :chain); ntasks = 4)
 ```
 
-The solve loop is pluggable. The default `:nlsolve` runs the bundled PowerModels path,
-while a NonlinearSolve algorithm reuses one nonlinear cache per state, which combined
-with `ntasks` runs about 6.6 times faster end to end on a 1354-bus case.
+Both settings of `solver` run the same mismatch equations, the same analytic Jacobian
+and sparsity pattern, and the same `tol` and `maxiter`, so they reach the same solution.
+What differs is the loop around them:
+
+- `:nlsolve`, the default, hands the system to the bundled PowerModels routine, which
+  builds a fresh NLsolve trust-region workspace for every solve.
+- a NonlinearSolve algorithm builds one nonlinear cache per state at the first solve and
+  reinitializes it afterwards, so the workspace and the factorization structure survive
+  from sample to sample.
+
+In practice `NonlinearSolve.jl` is typically 2 to 3 times faster than `:nlsolve` for a
+single-threaded run.
 
 ## Extensions
 
@@ -138,7 +151,8 @@ Optional features load automatically with their trigger package.
 
 ## How to Cite
 
-If you use ProbabilisticPowerFlow.jl in your work, please cite using the reference given in [CITATION.cff](https://github.com/langestefan/ProbabilisticPowerFlow.jl/blob/main/CITATION.cff).
+If you use ProbabilisticPowerFlow.jl in your work, please cite using the reference given
+in [CITATION.cff](https://github.com/langestefan/ProbabilisticPowerFlow.jl/blob/main/CITATION.cff).
 
 ## Contributing
 
