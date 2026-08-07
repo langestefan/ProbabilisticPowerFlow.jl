@@ -71,11 +71,18 @@ export NetworkData, Branch, build_ybus, ReferenceBackend, case5
 # cannot export new names, so the empty functions are declared here.
 
 """
-    PowerModelsBackend(data::AbstractDict; tol = 1e-8, maxiter = 100)
+    PowerModelsBackend(data::AbstractDict; solver = :nlsolve, tol = 1e-8,
+                       maxiter = 100)
 
 AC power flow backend on a PowerModels.jl network data dictionary, for example the
-result of `PowerModels.parse_file`. The solver is PowerModels' native Newton method
-on a sparse admittance matrix.
+result of `PowerModels.parse_file`. Newton iterations on a sparse admittance
+matrix, with a pluggable solve loop:
+
+  - `solver = :nlsolve`, the default, runs PowerModels' bundled NLsolve path.
+  - `solver = NewtonRaphson()` or any other NonlinearSolve.jl algorithm, available
+    after `using NonlinearSolve`, runs the same equations through a nonlinear
+    cache that is built once per state and reused, so repeated solves allocate
+    almost nothing. Concurrent sampling scales best on this path.
 
 The constructor lives in the `PPFPowerModelsExt` package extension, so it is only
 available after `using PowerModels`. Without PowerModels loaded, calling this
@@ -92,5 +99,13 @@ external grid connections, which is what benchmark datasets such as SimBench ass
 function PowerModelsBackend end
 
 export PowerModelsBackend
+
+# Internal seam for the PowerModels backend's solver choice. The PowerModels
+# extension implements the bundled NLsolve path for solver == :nlsolve, and the
+# NonlinearSolve extension adds a method for NonlinearSolve algorithms with a
+# reusable cache. Both live in extensions, so the dispatch functions are owned
+# here and extended there.
+function run_pf_solver! end
+supports_pf_solver(solver) = false
 
 end

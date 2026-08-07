@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning].
 
 ## [Unreleased]
 
+- Pluggable solve loop for the PowerModels backend: `PowerModelsBackend` accepts
+  a `solver` keyword. The default `:nlsolve` keeps the bundled path, and any
+  NonlinearSolve.jl algorithm, available after `using NonlinearSolve` through the
+  package extension `PPFNonlinearSolveExt`, runs the same equations on a
+  nonlinear cache built once per state and reused, so repeated solves allocate
+  almost nothing. On case1354 the cached path is about twice as fast serially
+  and combines with `ntasks` for a 6.6 times end-to-end speedup over the old
+  serial default
 - The PowerModels backend bakes the net-injection arrays at the first solve and
   refreshes them per solve as a copy plus an O(slots) update. The refresh went
   from about 2 MB of Dict allocations per solve to zero, which mattered most for

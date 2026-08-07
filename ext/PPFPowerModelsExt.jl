@@ -18,22 +18,36 @@ is_slack_bus(bus::AbstractDict) = is_slack_bus(bus["bus_type"]::Int)
     PMBackend
 
 Backend built by [`ProbabilisticPowerFlow.PowerModelsBackend`](@ref). It holds a
-pristine deep copy of the validated PowerModels network data dictionary. Solves run
-PowerModels' native AC power flow: Newton iterations on a sparse admittance matrix.
+pristine deep copy of the validated PowerModels network data dictionary. Newton
+iterations on a sparse admittance matrix, with the solve loop chosen by the
+`solver` field: the bundled NLsolve path for `:nlsolve`, or a cached
+NonlinearSolve.jl loop when a NonlinearSolve algorithm is passed and the
+`PPFNonlinearSolveExt` extension is loaded.
 """
-struct PMBackend <: PPF.AbstractBackend
+struct PMBackend{S} <: PPF.AbstractBackend
     data::Dict{String,Any}
+    solver::S
     tol::Float64
     maxiter::Int
     branch_lookup::Dict{Tuple{Int,Int},Tuple{String,Bool}}
     ambiguous_pairs::Set{Tuple{Int,Int}}
 end
 
+PPF.supports_pf_solver(solver::Symbol) = solver === :nlsolve
+
 function PPF.PowerModelsBackend(
     data::AbstractDict;
+    solver = :nlsolve,
     tol::Real = 1e-8,
     maxiter::Integer = 100,
 )
+    PPF.supports_pf_solver(solver) || throw(
+        ArgumentError(
+            "unknown power flow solver $(repr(solver)). Use :nlsolve for the " *
+            "bundled path, or pass a NonlinearSolve.jl algorithm after running " *
+            "`using NonlinearSolve`.",
+        ),
+    )
     for table in ("bus", "load", "gen", "branch")
         haskey(data, table) || throw(
             ArgumentError(
@@ -85,7 +99,14 @@ function PPF.PowerModelsBackend(
     end
 
     work = Dict{String,Any}(k => v for (k, v) in deepcopy(data))
-    return PMBackend(work, Float64(tol), Int(maxiter), branch_lookup, ambiguous_pairs)
+    return PMBackend(
+        work,
+        solver,
+        Float64(tol),
+        Int(maxiter),
+        branch_lookup,
+        ambiguous_pairs,
+    )
 end
 
 """
@@ -113,6 +134,11 @@ mutable struct PMState
     vm_base::Vector{Float64}
     slot_rows::Vector{Tuple{Int,Bool,Float64}}   # (row, is_p, sign)
     x_base::Vector{Float64}
+    # used only by the NonlinearSolve solver path: the reusable nonlinear cache
+    # and the last converged solution vector for warm starts
+    solver_cache::Any
+    last_x::Vector{Float64}
+    has_last::Bool
 end
 
 function PPF.init_state(b::PMBackend, refs::AbstractVector{ComponentRef})
@@ -173,6 +199,9 @@ function PPF.init_state(b::PMBackend, refs::AbstractVector{ComponentRef})
         Float64[],
         Tuple{Int,Bool,Float64}[],
         Float64[],
+        nothing,
+        Float64[],
+        false,
     )
 end
 
@@ -264,19 +293,13 @@ end
 function PPF.solve!(state::PMState, b::PMBackend; warmstart = nothing)
     state.flows = nothing
     state.solved = false
-    flat = warmstart === nothing
-    if !flat
-        warmstart isa PMState || throw(
+    if warmstart !== nothing && !(warmstart isa PMState)
+        throw(
             ArgumentError(
                 "warmstart must be a previously solved state of the PowerModels " *
                 "backend, got $(typeof(warmstart))",
             ),
         )
-        for (i, bus) in state.data["bus"]
-            wbus = warmstart.data["bus"][i]
-            bus["vm_start"] = wbus["vm"]
-            bus["va_start"] = wbus["va"]
-        end
     end
     info = try
         if state.pf_data === nothing
@@ -285,17 +308,13 @@ function PPF.solve!(state::PMState, b::PMBackend; warmstart = nothing)
         else
             refresh_pf_data!(state)
         end
-        res = PM._compute_ac_pf(
-            state.pf_data;
-            flat_start = flat,
-            ftol = b.tol,
-            iterations = b.maxiter,
-        )
-        converged = res.x_converged || res.f_converged
-        converged && write_solution!(state.data, state.pf_data, res.zero)
-        SolveInfo(converged, res.iterations, res.residual_norm)
+        info, xsol = PPF.run_pf_solver!(state, b, b.solver, warmstart)
+        info.converged &&
+            xsol !== nothing &&
+            write_solution!(state.data, state.pf_data, xsol)
+        info
     catch err
-        # NLsolve throws on non-finite iterates and singular Jacobians. The
+        # Solvers throw on non-finite iterates and singular Jacobians. The
         # contract records divergence as data instead. A failed solve leaves no
         # stale state behind: the deltas are recomputed and the starting point is
         # fully rewritten on the next solve.
@@ -304,6 +323,28 @@ function PPF.solve!(state::PMState, b::PMBackend; warmstart = nothing)
     end
     state.solved = info.converged
     return info
+end
+
+# The bundled solver path: PowerModels' _compute_ac_pf through NLsolve. Warm
+# starts go through the vm_start and va_start keys, which the non-flat starting
+# point reads.
+function PPF.run_pf_solver!(state, b, ::Symbol, warmstart)
+    flat = warmstart === nothing
+    if !flat
+        for (i, bus) in state.data["bus"]
+            wbus = warmstart.data["bus"][i]
+            bus["vm_start"] = wbus["vm"]
+            bus["va_start"] = wbus["va"]
+        end
+    end
+    res = PM._compute_ac_pf(
+        state.pf_data;
+        flat_start = flat,
+        ftol = b.tol,
+        iterations = b.maxiter,
+    )
+    converged = res.x_converged || res.f_converged
+    return SolveInfo(converged, res.iterations, res.residual_norm), res.zero
 end
 
 PPF.supports_warmstart(::PMBackend) = true
