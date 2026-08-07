@@ -27,8 +27,7 @@ end
     @test r.samples == r2.samples
 end
 
-@testitem "LHS reduces the variance of the mean" tags = [:integration] setup =
-    [MCSetup] begin
+@testitem "LHS reduces the variance of the mean" tags = [:integration] setup = [MCSetup] begin
     # Repeated small-n estimates of the mean of vm5. The LHS estimates must
     # scatter less than the plain MC estimates. Deterministic under the seeds.
     prob = case5_problem()
@@ -60,15 +59,13 @@ end
     @test r.samples != r3.samples
 end
 
-@testitem "Sobol converges faster than MC on case5" tags = [:integration] setup =
-    [MCSetup] begin
+@testitem "Sobol converges faster than MC on case5" tags = [:integration] setup = [MCSetup] begin
     using Sobol
 
     prob = case5_problem()
     q = VoltageMagnitude(5)
     mc = [mean(solve(prob, MonteCarlo(n = 64); rng = Xoshiro(200 + s)), q) for s = 1:12]
-    qmc =
-        [mean(solve(prob, SobolSampling(n = 64); rng = Xoshiro(200 + s)), q) for s = 1:12]
+    qmc = [mean(solve(prob, SobolSampling(n = 64); rng = Xoshiro(200 + s)), q) for s = 1:12]
     @test std(qmc) < std(mc)
 end
 
@@ -117,8 +114,7 @@ end
     using QuasiMonteCarlo
 
     prob = case5_problem()
-    scrambled(seed) =
-        SobolSample(R = OwenScramble(base = 2, pad = 32, rng = Xoshiro(seed)))
+    scrambled(seed) = SobolSample(R = OwenScramble(base = 2, pad = 32, rng = Xoshiro(seed)))
     r1 = solve(prob, QMCSampling(scrambled(1); n = 256))
     r2 = solve(prob, QMCSampling(scrambled(1); n = 256))
     r3 = solve(prob, QMCSampling(scrambled(2); n = 256))
@@ -130,8 +126,7 @@ end
     @test r1.samples == r4.samples
 end
 
-@testitem "QMCSampling shares the warm start modes" tags = [:integration] setup =
-    [MCSetup] begin
+@testitem "QMCSampling shares the warm start modes" tags = [:integration] setup = [MCSetup] begin
     using QuasiMonteCarlo
 
     prob = case5_problem()

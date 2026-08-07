@@ -26,9 +26,7 @@ function solve(
 )
     ext = Base.get_extension(@__MODULE__, :PPFSobolExt)
     ext === nothing && throw(
-        ArgumentError(
-            "SobolSampling requires the Sobol package. Run `using Sobol` first.",
-        ),
+        ArgumentError("SobolSampling requires the Sobol package. Run `using Sobol` first."),
     )
     return ext.solve_sobol(prob, method, rng)
 end

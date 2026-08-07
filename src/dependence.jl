@@ -36,6 +36,15 @@ stays uniform on `(0,1)`. This is step 1 of [`to_physical!`](@ref).
 function to_dependent! end
 
 """
+    dependence_dim(dep)
+
+The germ dimension a dependence structure is defined for, or `nothing` when the
+structure is dimension-agnostic. [`UncertaintyModel`](@ref) checks it against the
+number of germ variables at construction.
+"""
+function dependence_dim end
+
+"""
     IndependentCopula()
 
 Independent germ variables; `to_dependent!` is the identity.

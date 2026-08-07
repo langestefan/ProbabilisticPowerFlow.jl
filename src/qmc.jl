@@ -24,8 +24,12 @@ struct QMCSampling{S} <: AbstractPPFMethod
     keep_inputs::Bool
 end
 
-QMCSampling(sampler; n::Integer = 1000, warmstart::Symbol = :off, keep_inputs::Bool = false) =
-    QMCSampling(sampler, Int(n), warmstart, keep_inputs)
+QMCSampling(
+    sampler;
+    n::Integer = 1000,
+    warmstart::Symbol = :off,
+    keep_inputs::Bool = false,
+) = QMCSampling(sampler, Int(n), warmstart, keep_inputs)
 
 function solve(
     prob::PPFProblem,

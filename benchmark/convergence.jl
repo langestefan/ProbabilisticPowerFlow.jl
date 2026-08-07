@@ -53,8 +53,10 @@ assigns = Assignment[]
 dist = LogNormal(0.0, 0.05)
 for (id, l) in eligible
     push!(vars, GermVariable("l$id", dist))
-    push!(assigns, Assignment("l$id", ComponentRef(:load, id, :pd),
-        AffineTransform(l["pd"], 0.0)))
+    push!(
+        assigns,
+        Assignment("l$id", ComponentRef(:load, id, :pd), AffineTransform(l["pd"], 0.0)),
+    )
 end
 d = length(vars)
 R = fill(0.3, d, d)
@@ -87,11 +89,7 @@ methods(n, seed) = [
     ("MonteCarlo", MonteCarlo(; n, warmstart = :chain), Xoshiro(seed)),
     ("LatinHypercube", LatinHypercube(; n, warmstart = :chain), Xoshiro(seed)),
     ("SobolSampling", SobolSampling(; n, warmstart = :chain), Xoshiro(seed)),
-    (
-        "QMC_OwenSobol",
-        QMCSampling(scrambled(seed); n, warmstart = :chain),
-        Xoshiro(seed),
-    ),
+    ("QMC_OwenSobol", QMCSampling(scrambled(seed); n, warmstart = :chain), Xoshiro(seed)),
 ]
 
 const NS = [32, 64, 128, 256, 512, 1024]
@@ -99,14 +97,10 @@ const NREP = 8
 
 # high-accuracy reference from an Owen-scrambled Sobol run
 @info "reference run"
-truth = mean(
-    solve(prob, QMCSampling(scrambled(999); n = 8192, warmstart = :chain)),
-    qoi,
-)
+truth = mean(solve(prob, QMCSampling(scrambled(999); n = 8192, warmstart = :chain)), qoi)
 @info "reference mean vm at bus $pilot: $truth"
 
-jobs = [(name, n, rep) for n in NS for rep = 1:NREP for
-        (name, _, _) in methods(2, 1)]
+jobs = [(name, n, rep) for n in NS for rep = 1:NREP for (name, _, _) in methods(2, 1)]
 results = Dict{Tuple{String,Int,Int},Float64}()
 lk = ReentrantLock()
 elapsed = @elapsed @threads for (name, n, rep) in jobs

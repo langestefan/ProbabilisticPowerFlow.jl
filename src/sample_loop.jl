@@ -43,11 +43,8 @@ function solve_u_matrix(
     backend = prob.backend
     d = germ_dim(model)
     n = size(U, 2)
-    size(U, 1) == d || throw(
-        DimensionMismatch(
-            "U has $(size(U, 1)) rows, expected germ dimension $(d)",
-        ),
-    )
+    size(U, 1) == d ||
+        throw(DimensionMismatch("U has $(size(U, 1)) rows, expected germ dimension $(d)"))
     n_inj = length(model.assignments)
     n_qois = length(prob.qois)
 

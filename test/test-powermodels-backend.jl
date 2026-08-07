@@ -245,8 +245,7 @@ end
     end
 end
 
-@testitem "multi-slack network solves" tags = [:integration, :powermodels] setup =
-    [PMCase5] begin
+@testitem "multi-slack network solves" tags = [:integration, :powermodels] setup = [PMCase5] begin
     using ProbabilisticPowerFlow
     import PowerModels as PM
 
