@@ -77,6 +77,9 @@ backend must reset to a deterministic initial point such as a flat start. Otherw
 `warmstart` is a previously solved state of the same backend. The solve must be
 restartable after a failure, and must return a `SolveInfo` rather than throw on
 divergence.
+
+This is a method of `CommonSolve.solve!`, the shared SciML interface function, so
+a backend adapter extends the same name the rest of that ecosystem uses.
 """
 function solve! end
 
