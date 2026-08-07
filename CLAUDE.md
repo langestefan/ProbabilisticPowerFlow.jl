@@ -70,11 +70,12 @@ New test files must follow the `test/test-*.jl` naming pattern to be picked up.
 
 ### Linting and formatting
 
-Pre-commit runs all linters/formatters (JuliaFormatter, markdownlint, yamllint/yamlfmt,
-JSON/TOML checks) and is enforced as a git hook:
+prek runs all linters/formatters (JuliaFormatter, markdownlint, yamllint/yamlfmt,
+JSON/TOML checks) and is enforced as a git hook. Install the hook once per clone
+with `prek install`, then:
 
 ```bash
-pre-commit run -a
+prek run -a
 ```
 
 Julia formatting follows `.JuliaFormatter.toml` (4-space indent, 92-char margin).
@@ -94,7 +95,7 @@ require a title entry in the `titles` Dict in `docs/make.jl`, or the build error
 
 ## Git workflow
 
-- The `no-commit-to-branch` pre-commit hook blocks direct commits to `main` — always work
+- The `no-commit-to-branch` prek hook blocks direct commits to `main` — always work
   on a branch.
 - The repo keeps a linear history: rebase branches on `main` rather than merging.
 - Branch names: dash-separated imperative, prefixed with the issue number when there is
