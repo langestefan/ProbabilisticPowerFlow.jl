@@ -1,0 +1,10 @@
+name = "ProbabilisticPowerFlow"
+uuid = "a62f3996-1a83-5fb5-8093-14872f0569ef"
+authors = ["Stefan de Lange <langestefan@msn.com>"]
+version = "0.1.0"
+
+[workspace]
+projects = ["test", "docs"]
+
+[compat]
+julia = "1.10"

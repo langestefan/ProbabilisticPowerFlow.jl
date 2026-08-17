@@ -1,0 +1,13 @@
+# Changes here will be overwritten by Copier
+AddPrecommitUpdateCI: false
+Authors: Stefan de Lange <langestefan@msn.com>
+JuliaMinVersion: '1.10'
+License: MIT
+LicenseCopyrightHolders: Stefan de Lange
+PackageName: ProbabilisticPowerFlow
+PackageOwner: langestefan
+PackageUUID: a62f3996-1a83-5fb5-8093-14872f0569ef
+StrategyConfirmIncluded: false
+StrategyLevel: 3
+StrategyReviewExcluded: false
+_src_path: /home/langestefan/.julia/packages/BestieTemplate/MPEqY
