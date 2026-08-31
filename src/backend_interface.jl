@@ -104,3 +104,69 @@ Optional:
 See `ReferenceBackend` for a usable example of the contract.
 """
 abstract type AbstractPFBackend end
+
+
+"""
+    init_state(backend::AbstractPFBackend, refs::AbstractVector{ComponentRef}) -> state
+
+Allocate and return the initial mutable solver state.
+
+When `init_state` is called, the backend must resolve each `ComponentRef` to an internal 
+slot once, so that `set_injections!` can operate as an allocation-free write per sample. 
+Must error on a ref that does not exist in the network.
+
+To enable concurrent (parallel, threaded) sampling, the backend must treat states from
+separate `init_state` calls as independent, and must not mutate the backend after 
+construction.
+"""
+function init_state end
+
+"""
+    set_injections!(state, backend::AbstractPFBackend, x::AbstractVector{<:Real}) -> state
+
+Write the physical injection vector `x` into the state. `x` is ordered according to the 
+`refs` passed to [`init_state`](@ref).
+"""
+function set_injections! end
+
+"""
+    solve!(state, backend::AbstractPFBackend; warmstart = nothing) -> SolveInfo
+
+Run a deterministic power flow solve on `state`. With `warmstart === nothing` the
+backend must reset to a deterministic initial point such as a flat start. Otherwise
+`warmstart` is a previously solved state of the same backend. The solve must be
+restartable after a failure, and must return a `SolveInfo` rather than throw on
+divergence.
+
+This is a method of `CommonSolve.solve!`, the shared SciML interface function, so
+a backend adapter extends the same name the rest of that ecosystem uses.
+"""
+function solve! end
+
+"""
+    extract(state, backend::AbstractPFBackend, qoi::AbstractQoI) -> Float64
+
+Read a quantity of interest from a solved state.
+"""
+function extract end
+
+"""
+    supports_warmstart(backend::AbstractPFBackend) -> Bool
+
+Whether `solve!` accepts a previously solved state as `warmstart`. Defaults to
+`false`.
+
+This is useful for sampling methods that use a Markov chain to explore the injection
+space, and can be used to accelerate convergence.
+"""
+supports_warmstart(::AbstractPFBackend) = false
+
+"""
+    linearize(backend::AbstractPFBackend, x0) -> (y0, S)
+
+Optional: sensitivity around the injection point `x0`. 
+
+Some methods that rely on linearization of the power flow, such as cumulant and PEM, 
+will use this if implemented. Otherwise, a finite-difference fallback can be used.
+"""
+function linearize end
