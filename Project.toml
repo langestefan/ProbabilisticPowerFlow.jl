@@ -1,10 +1,22 @@
 name = "ProbabilisticPowerFlow"
 uuid = "a62f3996-1a83-5fb5-8093-14872f0569ef"
-authors = ["Stefan de Lange <langestefan@msn.com>"]
 version = "0.1.0"
+authors = ["Stefan de Lange <langestefan@msn.com>"]
 
 [workspace]
 projects = ["test", "docs"]
 
+[deps]
+CommonSolve = "38540f10-b2f7-11e9-35d8-d573e4eb0ff2"
+Copulas = "ae264745-0b69-425e-9d9d-cf662c5eec93"
+Distributions = "31c24e10-a181-5473-b8eb-7969acd0382f"
+LinearAlgebra = "37e2e46d-f89d-539d-b4ee-838fcccc9c8e"
+Random = "9a3f8284-a2c9-5f02-9a11-845980a1fd5c"
+
 [compat]
+CommonSolve = "0.2"
+Copulas = "0.1.41"
+Distributions = "0.25"
+LinearAlgebra = "1.12.0"
+Random = "1.10.0"
 julia = "1.10"
