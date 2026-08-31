@@ -87,7 +87,7 @@ struct SolveInfo
 end
 
 """
-    AbstractPPFBackend
+    AbstractPFBackend
 
 A deterministic power flow solver backend. Interface definition:
 
@@ -103,4 +103,4 @@ Optional:
 
 See `ReferenceBackend` for a usable example of the contract.
 """
-abstract type AbstractPPFBackend end
+abstract type AbstractPFBackend end
