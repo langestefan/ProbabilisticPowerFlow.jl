@@ -1,5 +1,3 @@
-# Here we describe the PPF backend interface / contract.
-
 """
     ComponentField
 
