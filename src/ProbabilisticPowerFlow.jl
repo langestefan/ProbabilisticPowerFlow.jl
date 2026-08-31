@@ -1,11 +1,12 @@
 module ProbabilisticPowerFlow
 
-"""
-    hi = hello_world()
-A simple function to return "Hello, World!"
-"""
-function hello_world()
-    return "Hello, World!"
-end
+using EnumX: @enumx
+
+include("backend_interface.jl")
+
+# Exported symbols needed to implement the backend interface
+export ComponentRef, ComponentField, ComponentKind, SolveInfo, kind
+
+
 
 end
