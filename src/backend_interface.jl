@@ -99,7 +99,7 @@ Optional:
   - `supports_warmstart(backend) -> Bool`, default `false`
   - `linearize(backend, x0) -> (y0, S)`, which unlocks cumulant/PEM methods
 
-See `ReferenceBackend` for a usable example of the contract.
+See `ReferenceBackend` for a fully usable example of the interface definition.
 """
 abstract type AbstractPFBackend end
 
