@@ -12,6 +12,14 @@ Pages = ["reference.md"]
 Pages = ["reference.md"]
 ```
 
+Enum namespaces created by `EnumX.@enumx` are modules, which `@autodocs` does not
+pick up, so they are listed explicitly here.
+
+```@docs
+ProbabilisticPowerFlow.ComponentField
+ProbabilisticPowerFlow.ComponentKind
+```
+
 ```@autodocs
 Modules = [ProbabilisticPowerFlow]
 ```
