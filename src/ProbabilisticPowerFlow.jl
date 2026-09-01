@@ -2,6 +2,7 @@ module ProbabilisticPowerFlow
 
 using EnumX: @enumx
 using Distributions: UnivariateDistribution
+using Copulas: IndependentCopula
 
 import CommonSolve: solve!
 
@@ -21,8 +22,6 @@ export BranchActivePower, BranchReactivePower, ViolationEvent
 
 # Uncertainty model
 # export AbstractTransform, IdentityTransform, AffineTransform
-# export AbstractDependence, IndependentCopula, GaussianCopula
-# export spearman_to_gaussian, pearson_to_gaussian
 export GermVariable, Assignment, UncertaintyModel, germ_dim, targets
 export to_physical, to_physical!
 

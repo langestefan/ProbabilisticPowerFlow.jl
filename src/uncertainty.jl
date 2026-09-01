@@ -19,13 +19,15 @@ end
 
 Describes how germ variables map to network components.
 
-Germ variables have to be assigned to network components, optionally through a
-[`Transform`](@ref). The transform is applied to the germ value before writing it to
+Germ variables have to be assigned to network components, optionally through an
+[`AbstractTransform`](@ref). The transform is applied to the germ value before writing it to
 the component. Such a transform can for example be used when we specify windspeed as
 a germ variable, but use a power curve transform to get the generator's active power
-injection. It is allowed to assign the same germ variable to multiple components, which
-expresses perfect correlation between those components. An example could be a constant
-powerfactor load.
+injection.
+
+It is allowed to assign the same germ variable to multiple components, which expresses
+perfect correlation between those components. An example could be a constant powerfactor
+load.
 """
 struct Assignment{T<:AbstractTransform}
     variable::String
@@ -38,7 +40,25 @@ Assignment(variable::AbstractString, target::ComponentRef) =
 
 """
     UncertaintyModel(variables, assignments, dependence)
+    UncertaintyModel(variables, assignments)
 
+The full description of the uncertainty in a model: the germ variables, their mapping
+onto network components through `assignments`, and the dependence structure between the
+germ variables.
+
+The dependence structure is a [copula](@extref Copulas :std:doc:`manual/intro`), a
+multivariate distribution with uniform marginals. Its dimension must equal the number of
+germ variables, because the two together are one joint distribution. The two-argument
+form defaults to an `IndependentCopula` of the right dimension.
+
+Internally we cache `varindex`, a static mapping from assignment order to germ variable
+order, so [`to_physical!`](@ref) reads an integer index instead of resolving a name once
+per assignment per sample.
+
+Validated on construction: germ variable ids are unique, every assignment references a
+declared germ variable, every germ variable is referenced by at least one assignment, and
+the dependence dimension matches. Component existence in the network is the backend's
+half, enforced by [`init_state`](@ref).
 """
 struct UncertaintyModel{C,V<:AbstractVector{<:GermVariable},A<:AbstractVector{<:Assignment}}
     variables::V
@@ -50,8 +70,62 @@ struct UncertaintyModel{C,V<:AbstractVector{<:GermVariable},A<:AbstractVector{<:
         variables::AbstractVector{<:GermVariable},
         assignments::AbstractVector{<:Assignment},
         dependence::C,
-    ) where {C} end
+    ) where {C}
+        ids = getfield.(variables, :id)
+        if length(unique(ids)) != length(ids)
+            throw(ArgumentError("duplicate germ variable ids: $(ids)"))
+        end
+
+        # build the mapping from assignment order to germ variable order
+        index = Dict(id => k for (k, id) in enumerate(ids))
+        varindex = map(enumerate(assignments)) do (j, a)
+            k = get(index, a.variable, 0)
+            if k == 0
+                throw(
+                    ArgumentError(
+                        "assignment $(j) references undeclared germ variable " *
+                        "$(repr(a.variable))",
+                    ),
+                )
+            end
+            return k
+        end
+
+        # check that we have no floating variables (variable without an assignment)
+        referenced = falses(length(variables))
+        referenced[varindex] .= true
+        if !all(referenced)
+            throw(
+                ArgumentError(
+                    "germ variables referenced by no assignment: $(ids[.!referenced])",
+                ),
+            )
+        end
+
+        d = length(dependence)
+        if d != length(variables)
+            throw(
+                ArgumentError(
+                    "dependence dimension $(d) does not match the number of germ " *
+                    "variables $(length(variables))",
+                ),
+            )
+        end
+
+        # collect keeps a concrete element type when the inputs are homogeneous
+        vars = collect(variables)
+        assigns = collect(assignments)
+        return new{C,typeof(vars),typeof(assigns)}(vars, assigns, dependence, varindex)
+    end
+
+
+
 end
+
+UncertaintyModel(
+    variables::AbstractVector{<:GermVariable},
+    assignments::AbstractVector{<:Assignment},
+) = UncertaintyModel(variables, assignments, IndependentCopula(length(variables)))
 
 """
     germ_dim(m::UncertaintyModel)

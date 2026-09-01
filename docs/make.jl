@@ -10,6 +10,8 @@ links = InterLinks(
         "https://juliastats.org/Distributions.jl/stable/objects.inv";
         timeout = 30,
     ),
+    "Copulas" =>
+        Inventory("https://lrnv.github.io/Copulas.jl/stable/objects.inv"; timeout = 30),
 )
 
 DocMeta.setdocmeta!(
