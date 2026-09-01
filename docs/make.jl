@@ -1,5 +1,16 @@
 using ProbabilisticPowerFlow
 using Documenter
+using DocumenterInterLinks
+using DocInventories: Inventory
+
+# Inventories for `@extref` links into the docs of our dependencies. The default
+# download timeout of one second is too tight to be reliable.
+links = InterLinks(
+    "Distributions" => Inventory(
+        "https://juliastats.org/Distributions.jl/stable/objects.inv";
+        timeout = 30,
+    ),
+)
 
 DocMeta.setdocmeta!(
     ProbabilisticPowerFlow,
@@ -72,6 +83,7 @@ makedocs(;
         canonical = "https://langestefan.github.io/ProbabilisticPowerFlow.jl",
     ),
     pages = list_pages(),
+    plugins = [links],
 )
 
 deploydocs(; repo = "github.com/langestefan/ProbabilisticPowerFlow.jl")
