@@ -7,8 +7,6 @@
 end
 
 @testitem "kind covers every ComponentField member" tags=[:unit, :fast] begin
-    # Guards the maintenance hazard: adding a member to ComponentField without
-    # extending `kind` makes this fail rather than surfacing at a call site.
     for f in instances(ComponentField.T)
         @test kind(f) isa ComponentKind.T
     end
