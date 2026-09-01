@@ -153,7 +153,35 @@ function to_physical!(
     m::UncertaintyModel,
     u::AbstractVector{<:Real},
     germ::AbstractVector{Float64},
-) end
+)
+    # loop over dimension validations
+    for (name, v, n) in (
+        ("u", u, germ_dim(m)),
+        ("germ", germ, germ_dim(m)),
+        ("x", x, length(m.assignments)),
+    )
+        if length(v) != n
+            throw(DimensionMismatch("$(name) has length $(length(v)), expected $(n)"))
+        end
+    end
+
+    # from independent uniforms to correlated uniforms
+    germ .= inverse_rosenblatt(m.dependence, u)
+
+    # inverse transform sampling: F⁻¹(u) has distribution F when u ~ U(0,1)
+    # (quantile is the inverse CDF = F⁻¹)
+    @inbounds for k in eachindex(germ)
+        germ[k] = quantile(m.variables[k].dist, clamp(germ[k], eps(), 1 - eps()))
+    end
+
+    # map to physical injections using the assignment transforms
+    # if the germ models the physical injection directly this is equal to identity
+    @inbounds for j in eachindex(m.assignments)
+        x[j] = m.assignments[j].transform(germ[m.varindex[j]])
+    end
+
+    return x
+end
 
 """
     to_physical(m::UncertaintyModel, u)
@@ -166,3 +194,11 @@ to_physical(m::UncertaintyModel, u::AbstractVector{<:Real}) = to_physical!(
     u,
     Vector{Float64}(undef, germ_dim(m)),
 )
+
+"""
+    germ_dist(m::UncertaintyModel)
+
+The joint distribution of the germ variables, as a
+[`SklarDist`](@extref Copulas Copulas.SklarDist).
+"""
+germ_dist(m::UncertaintyModel) = SklarDist(m.dependence, Tuple(v.dist for v in m.variables))
