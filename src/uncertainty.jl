@@ -117,9 +117,6 @@ struct UncertaintyModel{C,V<:AbstractVector{<:GermVariable},A<:AbstractVector{<:
         assigns = collect(assignments)
         return new{C,typeof(vars),typeof(assigns)}(vars, assigns, dependence, varindex)
     end
-
-
-
 end
 
 UncertaintyModel(
