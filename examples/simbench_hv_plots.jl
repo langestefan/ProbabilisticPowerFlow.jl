@@ -338,9 +338,14 @@ end
 let
     PROFILE = "res:WP7"
     BUS_A, BUS_B = 54, 61   # 0.4 km apart, and the pair this grid's voltages feel most
-    OBSERVED = 61           # carries the larger of the two farms, 17 MW
+    OBSERVED = 61           # carries the larger of the two farms
     RHOS = [0.0, 0.2, 0.4, 0.6, 0.8, 0.95]
     CLOUDS = [0.0, 0.4, 0.8, 0.95]   # the four drawn as densities
+
+    # Both farms are uprated by this factor. At their as-built 30 MW the pair is small
+    # against the grid's 1077 MW of wind and how correlated they are barely registers;
+    # uprating them is the cheapest way to see what the parameter actually does.
+    SCALE = 3.0
 
     farm(bus) = first(
         parse(Int, i) for (i, l) in data["load"] if l["source_id"][1] == "sgen" &&
@@ -360,12 +365,27 @@ let
             GermVariable("wind:bus$(BUS_B)", regional),
         ],
     )
+    # Uprating a farm is a change to its transform, not to its germ: the profile it
+    # follows keeps its shape, the megawatts that shape turns into are larger.
+    uprate(t::AffineTransform) = AffineTransform(SCALE * t.a, t.b)
+
     assignments2 = map(model.assignments) do a
-        a.target.id == ja && return Assignment("wind:bus$(BUS_A)", a.target, a.transform)
+        a.target.id == ja &&
+            return Assignment("wind:bus$(BUS_A)", a.target, uprate(a.transform))
         a.target.id == jb &&
-            return Assignment("wind:bus$(BUS_B)", a.target, a.transform)
+            return Assignment("wind:bus$(BUS_B)", a.target, uprate(a.transform))
         return a
     end
+
+    rated(j) = -SCALE * data["load"]["$(j)"]["pd"] * data["baseMVA"]
+    @printf(
+        "\nWind farms uprated %.0fx: bus %d now %.1f MW, bus %d now %.1f MW\n",
+        SCALE,
+        BUS_A,
+        rated(ja),
+        BUS_B,
+        rated(jb),
+    )
 
     function extended_R(rho)
         M = zeros(d0 + 2, d0 + 2)
@@ -486,7 +506,7 @@ let
     Label(
         fig[0, :],
         "Voltage and angle at bus $(OBSERVED), against the correlation between the " *
-        "wind farms at buses $(BUS_A) and $(BUS_B)",
+        "wind farms at buses $(BUS_A) and $(BUS_B), both uprated $(round(Int, SCALE))x",
         fontsize = 17,
         padding = (0, 0, 4, 0),
     )
