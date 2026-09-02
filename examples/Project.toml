@@ -4,9 +4,11 @@ Distributions = "31c24e10-a181-5473-b8eb-7969acd0382f"
 PowerModels = "c36e90e8-916a-50a6-bd94-075b64ef4655"
 Printf = "de0858da-6303-5e67-8744-51eddeeeb8d7"
 ProbabilisticPowerFlow = "a62f3996-1a83-5fb5-8093-14872f0569ef"
+SimBench = "32dbf506-5fe2-461d-9bb1-ec20229b5bac"
 Random = "9a3f8284-a2c9-5f02-9a11-845980a1fd5c"
 Statistics = "10745b16-79ce-11e8-11f9-7d13ad32a3b2"
 
 [sources]
+SimBench = {url = "https://github.com/langestefan/SimBench.jl"}
 ProbabilisticPowerFlow = {path = ".."}
 PowerModels = {url = "https://github.com/langestefan/PowerModels.jl", rev = "sciml-extension"}
