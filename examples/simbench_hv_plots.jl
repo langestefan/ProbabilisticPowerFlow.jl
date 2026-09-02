@@ -318,14 +318,12 @@ end
 
 # ---------------------------------------------------------------------------
 # 7. The joint law of voltage and angle at one bus, as a function of how correlated
-#    two neighbouring wind farms are.
+#    two neighbouring wind farms are, uprated until the band is actually at risk.
 #
 #    The study's germ carries one variable per profile, so the fourteen WP7 farms move
 #    as one and their mutual correlation is not a parameter at all. To ask the question
-#    at all, the two farms in question are split out of that group and given a germ
-#    variable each, sharing WP7's marginal.
-#
-#    Their dependence is then the standard one-factor construction
+#    the two farms in question are split out of that group and given a germ variable
+#    each, sharing WP7's marginal. Their dependence is the one-factor construction
 #
 #        z = sqrt(rho) * (regional WP7 factor) + sqrt(1 - rho) * (local noise)
 #
@@ -333,6 +331,17 @@ end
 #    of the system at sqrt(rho) times WP7's own, and is positive definite by
 #    construction for every rho < 1. rho is the spatial correlation of wind between the
 #    two sites: 0 is independent weather at each mast, 1 is one wind field.
+#
+#    Bus 61 is a radial stub hanging off bus 54 by a single 130 MVA line, and both
+#    farms inject pure active power as SimBench ships them. That combination has a
+#    voltage ceiling: sweeping their output deterministically, bus 61 peaks at 1.028 pu
+#    around 400 MW and then *falls*, because the reactive loss on the spur grows as the
+#    square of the current while the resistive rise is only linear. Past about 1100 MW
+#    there is no solution at all. No amount of extra megawatts reaches 1.10.
+#
+#    Crossing the band therefore takes reactive power, not more of it. The farms below
+#    run at 0.93 leading, which is inside what a modern grid code asks a wind farm to
+#    provide, and that is what puts the limit within reach.
 # ---------------------------------------------------------------------------
 
 let
@@ -342,10 +351,8 @@ let
     RHOS = [0.0, 0.2, 0.4, 0.6, 0.8, 0.95]
     CLOUDS = [0.0, 0.4, 0.8, 0.95]   # the four drawn as densities
 
-    # Both farms are uprated by this factor. At their as-built 30 MW the pair is small
-    # against the grid's 1077 MW of wind and how correlated they are barely registers;
-    # uprating them is the cheapest way to see what the parameter actually does.
-    SCALE = 3.0
+    SCALE = 6.0     # both farms uprated by this factor
+    TANPHI = 0.4    # reactive injection per unit of active, i.e. 0.93 leading
 
     farm(bus) = first(
         parse(Int, i) for (i, l) in data["load"] if l["source_id"][1] == "sgen" &&
@@ -365,22 +372,37 @@ let
             GermVariable("wind:bus$(BUS_B)", regional),
         ],
     )
+
     # Uprating a farm is a change to its transform, not to its germ: the profile it
-    # follows keeps its shape, the megawatts that shape turns into are larger.
+    # follows keeps its shape, the megawatts that shape turns into are larger. The
+    # reactive injection is a second assignment onto the same germ variable, which is
+    # the constant power factor pattern and keeps q locked to p sample by sample.
     uprate(t::AffineTransform) = AffineTransform(SCALE * t.a, t.b)
 
-    assignments2 = map(model.assignments) do a
-        a.target.id == ja &&
-            return Assignment("wind:bus$(BUS_A)", a.target, uprate(a.transform))
-        a.target.id == jb &&
-            return Assignment("wind:bus$(BUS_B)", a.target, uprate(a.transform))
-        return a
+    assignments2 = Assignment[]
+    for a in model.assignments
+        if a.target.id != ja && a.target.id != jb
+            push!(assignments2, a)
+            continue
+        end
+        v = a.target.id == ja ? "wind:bus$(BUS_A)" : "wind:bus$(BUS_B)"
+        push!(assignments2, Assignment(v, a.target, uprate(a.transform)))
+        a.target.field === ComponentField.Pd || continue
+        push!(
+            assignments2,
+            Assignment(
+                v,
+                ComponentRef(ComponentField.Qd, a.target.id),
+                AffineTransform(TANPHI * SCALE * a.transform.a, 0.0),
+            ),
+        )
     end
 
     rated(j) = -SCALE * data["load"]["$(j)"]["pd"] * data["baseMVA"]
     @printf(
-        "\nWind farms uprated %.0fx: bus %d now %.1f MW, bus %d now %.1f MW\n",
+        "\nWind farms uprated %.0fx at %.2f leading: bus %d now %.0f MW, bus %d now %.0f MW\n",
         SCALE,
+        cos(atan(TANPHI)),
         BUS_A,
         rated(ja),
         BUS_B,
@@ -415,7 +437,9 @@ let
         )
         va = collect(qoi_samples(r, VoltageAngle(OBSERVED)))
         vmg = collect(qoi_samples(r, VoltageMagnitude(OBSERVED)))
-        return (; rho, va, vmg)
+        pv =
+            violation_probability(r, ViolationEvent(VoltageMagnitude(OBSERVED), LO, HI))
+        return (; rho, va, vmg, pv, n = n_converged(r), fails = length(r.failures))
     end
 
     # The level enclosing a given probability mass, read off the density itself rather
@@ -433,13 +457,13 @@ let
     xl, yl = pad(xl, 0.05), pad(yl, 0.05)
     colour(k) = cgrad(:viridis)[(k-1)/(length(runs)-1)]
 
-    fig = Figure(size = (1120, 800))
+    fig = Figure(size = (1120, 830))
     for (col, rho) in enumerate(CLOUDS)
         k = findfirst(==(rho), RHOS)
         r, kd = runs[k], kdes[k]
         ax = Axis(
             fig[1, col],
-            title = "ρ = $(rho),  sd(vm) = $(round(std(r.vmg), digits = 5))",
+            title = "ρ = $(rho),  P(>$(HI)) = $(round(100 * r.pv, digits = 2))%",
             titlesize = 13,
             xlabel = "voltage angle (rad)",
             ylabel = col == 1 ? "voltage magnitude (pu)" : "",
@@ -455,6 +479,7 @@ let
             color = :white,
             linewidth = 1.4,
         )
+        hlines!(ax, [HI]; color = C_NET, linestyle = :dash, linewidth = 2)
         xlims!(ax, xl)
         ylims!(ax, yl)
         col == 1 || hideydecorations!(ax; grid = false)
@@ -477,6 +502,16 @@ let
             linewidth = 2.4,
         )
     end
+    hlines!(ax, [HI]; color = C_NET, linestyle = :dash, linewidth = 2)
+    text!(
+        ax,
+        xl[2],
+        HI + 0.0008;
+        text = "limit $(HI) ",
+        color = C_NET,
+        align = (:right, :bottom),
+        fontsize = 13,
+    )
     xlims!(ax, xl)
     ylims!(ax, yl)
     # contour! does not hand its colour to the legend, so the swatches are built here
@@ -492,9 +527,10 @@ let
     )
 
     ax2 = Axis(
-        fig[3, 1:4],
-        title = "Spread at bus $(OBSERVED), relative to independent farms",
-        xlabel = "ρ between the wind farms at buses $(BUS_A) and $(BUS_B)",
+        fig[3, 1:2],
+        title = "Spread, relative to independent farms",
+        titlesize = 13,
+        xlabel = "ρ",
         ylabel = "sd(ρ) / sd(0)",
     )
     sv = [std(r.vmg) for r in runs]
@@ -503,29 +539,46 @@ let
     scatterlines!(ax2, RHOS, sa ./ sa[1]; color = C_NET, linewidth = 2, label = "angle")
     axislegend(ax2; position = :rb, framevisible = false)
 
+    # The headline: the same hardware and the same weather, and the chance of leaving
+    # the band is set by whether the two farms blow together.
+    ax3 = Axis(
+        fig[3, 3:4],
+        title = "P(voltage above $(HI))",
+        titlesize = 13,
+        xlabel = "ρ",
+        ylabel = "probability",
+    )
+    pv = [r.pv for r in runs]
+    se = [1.96 * sqrt(p * (1 - p) / r.n) for (p, r) in zip(pv, runs)]
+    band!(ax3, RHOS, pv .- se, pv .+ se; color = (C_NET, 0.2))
+    scatterlines!(ax3, RHOS, pv; color = C_NET, linewidth = 2)
+
     Label(
         fig[0, :],
         "Voltage and angle at bus $(OBSERVED), against the correlation between the " *
-        "wind farms at buses $(BUS_A) and $(BUS_B), both uprated $(round(Int, SCALE))x",
+        "wind farms at buses $(BUS_A) and $(BUS_B), both uprated " *
+        "$(round(Int, SCALE))x at $(round(cos(atan(TANPHI)), digits = 2)) leading",
         fontsize = 17,
         padding = (0, 0, 4, 0),
     )
-    rowsize!(fig.layout, 2, Relative(0.34))
-    rowsize!(fig.layout, 3, Relative(0.21))
+    rowsize!(fig.layout, 2, Relative(0.32))
+    rowsize!(fig.layout, 3, Relative(0.22))
     push!(saved, save_fig("joint-voltage-angle.png", fig))
 
-    println("\nBus $(OBSERVED), joint spread against wind correlation:")
-    @printf("%6s %10s %10s %10s\n", "ρ", "sd(vm)", "sd(va)", "cor(vm,va)")
+    println("\nBus $(OBSERVED), against the correlation between the two farms:")
+    @printf("%6s %10s %10s %10s %12s\n", "ρ", "sd(vm)", "sd(va)", "max vm", "P(>$(HI))")
     for r in runs
         @printf(
-            "%6.2f %10.5f %10.5f %10.4f\n",
+            "%6.2f %10.5f %10.5f %10.4f %12.4f\n",
             r.rho,
             std(r.vmg),
             std(r.va),
-            cor(r.vmg, r.va)
+            maximum(r.vmg),
+            r.pv
         )
     end
 end
+
 
 println("\n", repeat("=", 72))
 println("Wrote $(length(saved)) figures to $(relpath(FIGDIR, pwd()))")
