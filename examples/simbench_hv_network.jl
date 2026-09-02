@@ -34,15 +34,10 @@ for table in ("load", "gen", "shunt", "storage")
     haskey(data, table) && empty!(data[table])
 end
 
+# 61 buses at 110 kV plus the three EHV boundary nodes the grid hangs from, so the
+# voltage level doubles as a map of where this network connects upward.
 for bus in values(data["bus"])
-    i = bus["index"]
-    bus["role"] = if i == OBSERVED
-        "wind farm $(OBSERVED), voltage watched"
-    elseif i == OTHER
-        "wind farm $(OTHER)"
-    else
-        "bus"
-    end
+    bus["level"] = "$(round(Int, bus["base_kv"])) kV"
 end
 
 println("$(GRID): $(length(data["bus"])) buses, $(length(data["branch"])) branches")
@@ -60,16 +55,17 @@ p = powerplot(
     data;
     fixed = true,
     parallel_edge_offset = 0.002,
-    # Vega orders a nominal scale alphabetically: bus, wind farm 54, wind farm 61.
+    # Vega orders a nominal scale alphabetically, and "110 kV" < "220 kV" < "380 kV"
+    # sorts the way the ladder does.
     bus = (
-        :data => :role,
+        :data => :level,
         :data_type => :nominal,
-        :size => 80,
-        :color => ["#aab4c0", "#0072B2", "#D55E00"],
+        :size => 45,
+        :color => ["#0072B2", "#009E73", "#CC79A7"],
     ),
-    branch = (:color => "#7d8896", :size => 2),
-    width = 900,
-    height = 720,
+    branch = (:color => "#000000", :size => 1.1),
+    width = 470,
+    height = 380,
 )
 
 # The two farms sit 0.4 km apart, which on this map is five pixels, so a ring and a
@@ -80,9 +76,9 @@ ring = @vlplot(
     mark = {
         :point,
         shape = "circle",
-        size = 1500,
+        size = 420,
         filled = false,
-        strokeWidth = 2.5,
+        strokeWidth = 1.8,
         stroke = "#D55E00",
     },
     x = {"x:q", axis = nothing, scale = {zero = false}},
@@ -93,7 +89,7 @@ label = @vlplot(
         values = [(
             x = spot["xcoord_1"],
             y = spot["ycoord_1"],
-            t = "wind farms $(OTHER) & $(OBSERVED)",
+            t = "wind farms $(OTHER) & $(OBSERVED), voltage at $(OBSERVED)",
         )],
     ),
     mark =
@@ -103,6 +99,24 @@ label = @vlplot(
     text = {"t:n"},
 )
 
+# A transformer's two buses share a substation and therefore a coordinate, so the one
+# 220 kV and two 380 kV nodes are drawn underneath their 110 kV twins and vanish. They
+# are redrawn on top, larger, sharing the bus colour scale so no second legend appears.
+const LEVEL_SCALE =
+    (domain = ["110 kV", "220 kV", "380 kV"], range = ["#0072B2", "#009E73", "#CC79A7"])
+
+ehv = [
+    (x = b["xcoord_1"], y = b["ycoord_1"], level = b["level"]) for
+    b in values(data["bus"]) if b["base_kv"] > 150
+]
+upper = @vlplot(
+    data = (values = ehv,),
+    mark = {:point, shape = "circle", size = 110, filled = true, opacity = 1.0},
+    x = {"x:q", axis = nothing, scale = {zero = false}},
+    y = {"y:q", axis = nothing, scale = {zero = false}},
+    color = {"level:n", scale = LEVEL_SCALE, legend = nothing},
+)
+
 out = joinpath(FIGDIR, "network.png")
-save(out, p + ring + label)
+save(out, p + upper + ring + label)
 println("Wrote ", relpath(out, pwd()))
