@@ -2,6 +2,7 @@
 Copulas = "ae264745-0b69-425e-9d9d-cf662c5eec93"
 Distributions = "31c24e10-a181-5473-b8eb-7969acd0382f"
 LinearAlgebra = "37e2e46d-f89d-539d-b4ee-838fcccc9c8e"
+PowerModels = "c36e90e8-916a-50a6-bd94-075b64ef4655"
 ProbabilisticPowerFlow = "a62f3996-1a83-5fb5-8093-14872f0569ef"
 Test = "8dfed614-e22c-5e08-85e1-65c5234f0b40"
 Random = "9a3f8284-a2c9-5f02-9a11-845980a1fd5c"
@@ -12,3 +13,4 @@ TOML = "fa267f1f-6049-4f14-aa54-33bafae1ed76"
 
 [sources]
 ProbabilisticPowerFlow = {path = ".."}
+PowerModels = {url = "https://github.com/langestefan/PowerModels.jl", rev = "sciml-extension"}
