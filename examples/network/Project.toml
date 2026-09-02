@@ -1,0 +1,8 @@
+[deps]
+PowerModels = "c36e90e8-916a-50a6-bd94-075b64ef4655"
+PowerPlots = "229d1e32-5c67-4c9a-a884-d6a3a7f23cfa"
+SimBench = "32dbf506-5fe2-461d-9bb1-ec20229b5bac"
+VegaLite = "112f6efa-9a02-5b7d-90c0-432ed331239a"
+
+[sources]
+SimBench = {url = "https://github.com/langestefan/SimBench.jl"}
