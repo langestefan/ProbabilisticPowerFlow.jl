@@ -96,28 +96,27 @@ upper = @vlplot(
 # single-layer spec: VegaLite's `+` drops layers when handed a nested layered one.
 b_other, b_obs = data["bus"]["$(OTHER)"], data["bus"]["$(OBSERVED)"]
 
-rings = @vlplot(
-    data = (
-        values = [
-            (x = b_other["xcoord_1"], y = b_other["ycoord_1"]),
-            (x = b_obs["xcoord_1"], y = b_obs["ycoord_1"]),
-        ],
-    ),
+# One colour per marked bus, so the two are told apart without reading the labels.
+const MARK_OTHER = "#D55E00"   # orange
+const MARK_OBS = "#D62728"     # red, for the bus whose voltage the study watches
+
+ring(bus, colour) = @vlplot(
+    data = (values = [(x = bus["xcoord_1"], y = bus["ycoord_1"])],),
     mark = {
         :point,
         shape = "circle",
         size = 520,
         filled = false,
         strokeWidth = 2.2,
-        stroke = "#D55E00",
+        stroke = colour,
     },
     x = {"x:q", axis = nothing, scale = {zero = false}},
     y = {"y:q", axis = nothing, scale = {zero = false}},
 )
 
-caption(bus, text, dx, dy, align) = @vlplot(
+caption(bus, text, dx, dy, align, colour) = @vlplot(
     data = (values = [(x = bus["xcoord_1"], y = bus["ycoord_1"], t = text)],),
-    mark = {:text, dx = dx, dy = dy, align = align, fontSize = 10, color = "#D55E00"},
+    mark = {:text, dx = dx, dy = dy, align = align, fontSize = 10, color = colour},
     x = {"x:q", axis = nothing, scale = {zero = false}},
     y = {"y:q", axis = nothing, scale = {zero = false}},
     text = {"t:n"},
@@ -139,9 +138,10 @@ end
 figure =
     p +
     upper +
-    rings +
-    caption(b_other, "farm $(OTHER)", 0, 26, "center") +
-    caption(b_obs, "farm $(OBSERVED), voltage watched", 22, 4, "left")
+    ring(b_other, MARK_OTHER) +
+    ring(b_obs, MARK_OBS) +
+    caption(b_other, "farm $(OTHER)", 0, 26, "center", MARK_OTHER) +
+    caption(b_obs, "farm $(OBSERVED)", 22, 4, "left", MARK_OBS)
 
 out = save_png(joinpath(FIGDIR, "network.png"), figure)
 println("Wrote ", relpath(out, pwd()), " at $(PPI) ppi")
