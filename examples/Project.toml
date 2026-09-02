@@ -1,6 +1,7 @@
 [deps]
 CairoMakie = "13f3f980-e62b-5c42-98c6-ff1f3baf88f0"
 Copulas = "ae264745-0b69-425e-9d9d-cf662c5eec93"
+KernelDensity = "5ab0869b-81aa-558d-bb23-cbf5423bbe9b"
 Distributions = "31c24e10-a181-5473-b8eb-7969acd0382f"
 PowerModels = "c36e90e8-916a-50a6-bd94-075b64ef4655"
 Printf = "de0858da-6303-5e67-8744-51eddeeeb8d7"
