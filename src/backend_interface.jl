@@ -109,10 +109,10 @@ abstract type AbstractPFBackend end
 
 Allocate and return the initial mutable solver state.
 
-When `init_state` is called, we must look up where each `ComponentRef` is in the
-backend's internal state, and keep that mapping, so that `set_injections!` can operate
-as an allocation-free write for each new sample. If the ref does not exist we must throw
-an error.
+When `init_state` is called, the backend must look up where each `ComponentRef` is in
+its internal state, and keep that mapping, so that `set_injections!` can operate as an
+allocation-free write for each new sample. It must error on a ref that does not exist in
+the network, rather than silently ignoring the injection.
 
 To enable concurrent (parallel, threaded) sampling, the backend must treat states from
 separate `init_state` calls as independent, and must not mutate the backend after
