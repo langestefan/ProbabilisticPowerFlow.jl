@@ -12,7 +12,7 @@ function mpc = case14
 %
 %   Converted from IEEE CDF file from:
 %       http://www.ee.washington.edu/research/pstca/
-% 
+%
 %  08/19/93 UW ARCHIVE           100.0  1962 W IEEE 14 Bus Test Case
 
 %   MATPOWER
