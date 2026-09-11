@@ -99,7 +99,8 @@ Optional:
   - `supports_warmstart(backend) -> Bool`, default `false`
   - `linearize(backend, x0) -> (y0, S)`, which unlocks cumulant/PEM methods
 
-See `ReferenceBackend` for a fully usable example of the interface definition.
+See [`PowerModelsBackend`](@ref) for a fully usable example of the interface
+definition.
 """
 abstract type AbstractPFBackend end
 
@@ -108,11 +109,6 @@ abstract type AbstractPFBackend end
     init_state(backend::AbstractPFBackend, refs::AbstractVector{ComponentRef}) -> state
 
 Allocate and return the initial mutable solver state.
-
-When `init_state` is called, we must look up where each `ComponentRef` is in the
-backend's internal state, and keep that mapping, so that `set_injections!` can operate
-as an allocation-free write for each new sample. If the ref does not exist we must throw
-an error.
 
 To enable concurrent (parallel, threaded) sampling, the backend must treat states from
 separate `init_state` calls as independent, and must not mutate the backend after
@@ -168,3 +164,38 @@ Some methods that rely on linearization of the power flow, such as cumulant and 
 will use this if implemented. Otherwise, a finite-difference fallback can be used.
 """
 function linearize end
+
+"""
+    PowerModelsBackend(data; alg = PowerModels.NativeNewton())
+
+An [`AbstractPFBackend`](@ref) solving the AC power flow with
+[PowerModels.jl](https://github.com/lanl-ansi/PowerModels.jl).
+
+`data` is a PowerModels network data dictionary in per unit, as returned by
+`PowerModels.parse_file`. It is validated and deep copied on construction, so mutating
+the dictionary afterwards does not change the backend. `alg` is the solver algorithm
+handed to `PowerModels._solve_nl`, which defaults to a damped Newton method on the
+analytic sparse Jacobian.
+
+Only quantities `Pd` and `Qd` on loads and `Pg` on generators can be assigned. Anything
+else is rejected by [`init_state`](@ref). This includes `Qd` at a PV bus, and any
+assignment at the slack bus.
+
+```julia
+using ProbabilisticPowerFlow, PowerModels
+
+backend = PowerModelsBackend(PowerModels.parse_file("case5.m"))
+state = init_state(backend, [ComponentRef(ComponentField.Pd, 1)])
+set_injections!(state, backend, [0.5])
+info = solve!(state, backend)
+extract(state, backend, VoltageMagnitude(3))
+```
+"""
+struct PowerModelsBackend{A} <: AbstractPFBackend
+    data::Dict{String,Any}
+    alg::A
+    # bus pair to branch id and whether the pair is read at the branch's from end
+    branch_lookup::Dict{Tuple{Int,Int},Tuple{String,Bool}}
+    # bus pairs joined by parallel branches, for which a branch flow is ambiguous
+    ambiguous_pairs::Set{Tuple{Int,Int}}
+end

@@ -16,12 +16,15 @@ export ComponentRef, ComponentField, ComponentKind, SolveInfo, kind
 export AbstractPFBackend, init_state, set_injections!, solve!, extract
 export supports_warmstart, linearize
 
+# Backends
+export PowerModelsBackend
+
 # Quantities of interest
 export AbstractQoI, VoltageMagnitude, VoltageAngle
 export BranchActivePower, BranchReactivePower, ViolationEvent
 
-# Uncertainty model
-# export AbstractTransform, IdentityTransform, AffineTransform
+# Uncertainty models
+export AbstractTransform, IdentityTransform, AffineTransform
 export GermVariable, Assignment, UncertaintyModel, germ_dim, germ_dist, targets
 export to_physical, to_physical!
 
