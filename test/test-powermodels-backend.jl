@@ -70,6 +70,24 @@ end
     @test_throws ArgumentError PowerModelsBackend(nogen)
 end
 
+@testitem "A backend can be built from a case file" tags = [:integration, :powermodels] setup =
+    [PMCase5] begin
+    path = joinpath(mktempdir(), "case5.m")
+    write(path, CASE5_M)
+
+    b = PowerModelsBackend(path)
+    @test b isa PowerModelsBackend
+    @test b.data == PowerModelsBackend(pm_case5()).data
+
+    alg = PowerModels.NativeNewton(maxiters = 7)
+    @test PowerModelsBackend(path; alg = alg).alg === alg
+
+    state = init_state(b, ComponentRef[])
+    @test solve!(state, b).converged
+
+    @test_throws SystemError PowerModelsBackend(joinpath(mktempdir(), "missing.m"))
+end
+
 @testitem "The backend is not mutated by its caller" tags = [:integration, :powermodels] setup =
     [PMCase5] begin
     data = pm_case5()

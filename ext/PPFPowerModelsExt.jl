@@ -78,6 +78,10 @@ function PPF.PowerModelsBackend(data::AbstractDict; alg = PM.NativeNewton())
     return PowerModelsBackend(work, alg, branch_lookup, ambiguous_pairs)
 end
 
+# direct dispatch on case string
+PPF.PowerModelsBackend(filename::AbstractString; alg = PM.NativeNewton()) =
+    PPF.PowerModelsBackend(PM.parse_file(filename), alg = alg)
+
 """
     PMState
 
