@@ -352,4 +352,33 @@ function PPF.extract(s::PMState, b::PowerModelsBackend, q::BranchReactivePower)
     return Float64(at_from ? flow["qf"] : flow["qt"])
 end
 
+function solved_label(s::PMState)
+    if s.solved
+        return "solved"
+    end
+    return "unsolved"
+end
+
+Base.show(io::IO, s::PMState) = print(
+    io,
+    "PMState(",
+    length(s.data["bus"]),
+    " buses, ",
+    length(s.slot_rows),
+    " injection slots, ",
+    solved_label(s),
+    ")",
+)
+
+Base.show(io::IO, ::MIME"text/plain", s::PMState) = PPF.show_tree(
+    io,
+    "PowerModelsBackend state",
+    [
+        "network: $(get(s.data, "name", "unnamed"))" => PPF.network_counts(s.data),
+        "injection slots: $(length(s.slot_rows))",
+        "solved: $(s.solved)",
+        "warm start available: $(s.has_solution)",
+    ],
+)
+
 end

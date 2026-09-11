@@ -7,7 +7,21 @@ and this project adheres to [Semantic Versioning].
 
 ## [Unreleased]
 
-- Initial release
+### Added
+
+- Backend interface: `ComponentRef`, `SolveInfo`, `AbstractPFBackend` with `init_state`,
+  `set_injections!`, `solve!` and `extract`, plus the optional `supports_warmstart` and
+  `linearize`.
+- `PowerModelsBackend`, an AC power flow backend on PowerModels.jl, loaded as a package
+  extension.
+- Quantities of interest: `VoltageMagnitude`, `VoltageAngle`, `BranchActivePower`,
+  `BranchReactivePower` and `ViolationEvent`.
+- `UncertaintyModel` from germ variables, assignments and a Copulas.jl copula, with
+  `IdentityTransform` and `AffineTransform`.
+- `PPFProblem`, `solve` as a method of `CommonSolve.solve`, and `MonteCarlo` sampling.
+- `PPFResult` with diverged samples kept as `FailedSample`, and the statistics
+  `mean`, `std`, `quantile` and `violation_probability`.
+- Compact one-line and tree displays for models, problems, results and backends.
 
 <!-- Links -->
 

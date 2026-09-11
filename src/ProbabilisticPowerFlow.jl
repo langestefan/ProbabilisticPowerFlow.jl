@@ -17,6 +17,7 @@ include("methods.jl")
 include("result.jl")
 include("sample_loop.jl")
 include("monte_carlo.jl")
+include("show.jl")
 
 # Exported symbols needed to implement the backend interface
 export ComponentRef, ComponentField, ComponentKind, SolveInfo, kind
