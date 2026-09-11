@@ -15,10 +15,12 @@ Random = "9a3f8284-a2c9-5f02-9a11-845980a1fd5c"
 Statistics = "10745b16-79ce-11e8-11f9-7d13ad32a3b2"
 
 [weakdeps]
+OhMyThreads = "67456a42-1dca-4109-a031-0a68de7e3ad5"
 PowerModels = "c36e90e8-916a-50a6-bd94-075b64ef4655"
 QuasiMonteCarlo = "8a4e6c94-4038-4cdc-81c3-7e6ffdb2a71b"
 
 [extensions]
+PPFOhMyThreadsExt = "OhMyThreads"
 PPFPowerModelsExt = "PowerModels"
 PPFQuasiMonteCarloExt = "QuasiMonteCarlo"
 
@@ -27,6 +29,7 @@ CommonSolve = "0.2"
 Copulas = "0.1.41"
 Distributions = "0.25"
 EnumX = "1"
+OhMyThreads = "0.8"
 PowerModels = "0.22"
 QuasiMonteCarlo = "0.4"
 Random = "1.10"

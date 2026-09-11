@@ -95,7 +95,7 @@ end
     @test std(sobol) < std(mc)
 end
 
-@testitem "Warm start and task options are validated" tags = [:unit, :fast] begin
+@testitem "Warm start and scheduler options are validated" tags = [:unit, :fast] begin
     using Distributions: Normal
 
     struct ColdBackend <: AbstractPFBackend end
@@ -105,36 +105,48 @@ end
 
     @test_throws ArgumentError solve(prob, MonteCarlo(n = 2); warmstart = :backwards)
     @test_throws ArgumentError solve(prob, MonteCarlo(n = 2); warmstart = :chain)
-    @test_throws ArgumentError solve(prob, MonteCarlo(n = 2); ntasks = 0)
+    @test_throws MethodError solve(prob, MonteCarlo(n = 2); scheduler = :threads)
 end
 
-@testitem "Warm starts and tasks change the cost, not the result" tags =
+@testitem "Warm starts and schedulers change the cost, not the result" tags =
     [:integration, :powermodels] setup = [PMCase5, MCCase5] begin
+    using OhMyThreads: DynamicScheduler, StaticScheduler
+
     prob = load_problem(pm_case5())
     method = MonteCarlo(n = 300)
     cold = solve(prob, method; rng = Xoshiro(11))
 
-    for warmstart in (:chain, :sorted), ntasks in (1, 3)
-        r = solve(prob, method; rng = Xoshiro(11), warmstart, ntasks)
+    for warmstart in (:chain, :sorted), scheduler in (nothing, DynamicScheduler())
+        r = solve(prob, method; rng = Xoshiro(11), warmstart, scheduler)
         @test r.sample_indices == cold.sample_indices
         @test r.n_solves == 300
         @test isapprox(r.samples, cold.samples; atol = 1.0e-6)
     end
 
-    @test solve(prob, method; rng = Xoshiro(11), ntasks = 4).samples == cold.samples
+    warm = solve(prob, method; rng = Xoshiro(11), scheduler = StaticScheduler())
+    @test warm.samples == cold.samples
 end
 
-@testitem "Tasks record the same failures as a serial run" tags =
+@testitem "A scheduler records the same failures as a serial run" tags =
     [:integration, :powermodels] setup = [PMCase5, MCCase5] begin
+    using OhMyThreads: DynamicScheduler
+
     prob = load_problem(pm_case5(); scale = 5.0, rel = 0.3)
     serial = solve(prob, MonteCarlo(n = 200); rng = Xoshiro(1))
-    parallel = solve(prob, MonteCarlo(n = 200); rng = Xoshiro(1), ntasks = 4)
+    parallel =
+        solve(prob, MonteCarlo(n = 200); rng = Xoshiro(1), scheduler = DynamicScheduler())
 
     @test !isempty(parallel.failures)
     @test [f.index for f in parallel.failures] == [f.index for f in serial.failures]
     @test parallel.samples == serial.samples
 
-    chained = solve(prob, MonteCarlo(n = 200); rng = Xoshiro(1), warmstart = :chain, ntasks = 2)
+    chained = solve(
+        prob,
+        MonteCarlo(n = 200);
+        rng = Xoshiro(1),
+        warmstart = :chain,
+        scheduler = DynamicScheduler(),
+    )
     @test n_converged(chained) + length(chained.failures) == 200
     @test issorted([f.index for f in chained.failures])
     @test issorted(chained.sample_indices)

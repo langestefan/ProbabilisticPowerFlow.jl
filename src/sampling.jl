@@ -8,7 +8,7 @@ dependence structure.
 abstract type AbstractPPFMethod end
 
 """
-    solve(prob::PPFProblem, method::AbstractPPFMethod; rng, warmstart = :off, ntasks = 1)
+    solve(prob::PPFProblem, method::AbstractPPFMethod; rng, warmstart = :off, scheduler)
 
 Estimate the QoIs of `prob` with `method`. One call runs many deterministic
 [`solve!`](@ref) calls on the backend.
@@ -16,7 +16,8 @@ Estimate the QoIs of `prob` with `method`. One call runs many deterministic
   - `rng`: random number generator for the samples, not used by `QuasiMC`.
   - `warmstart`: `:off` starts every solve cold, `:chain` from the previous solution, and
     `:sorted` does the same after sorting the samples by total injection.
-  - `ntasks`: number of tasks to split the solves over.
+  - `scheduler`: an OhMyThreads.jl scheduler to solve in parallel, `nothing` to solve one
+    sample at a time.
 
 This is a method of `CommonSolve.solve`, the interface function shared by the SciML
 ecosystem, so loading this package next to NonlinearSolve.jl gives one `solve` and no
@@ -25,7 +26,7 @@ name clash.
 CommonSolve.solve(::PPFProblem, ::AbstractPPFMethod)
 
 """
-    solve_samples(prob, method, U; warmstart = :off, ntasks = 1) -> PPFResult
+    solve_samples(prob, method, U; warmstart = :off, scheduler = nothing) -> PPFResult
 
 Solve one power flow per column of the `d × n` matrix `U`. Diverged samples are kept as
 [`FailedSample`](@ref), and results are stored in draw order.
@@ -35,12 +36,11 @@ function solve_samples(
         method::AbstractPPFMethod,
         U::AbstractMatrix{<:Real};
         warmstart::Symbol = :off,
-        ntasks::Integer = 1,
+        scheduler = nothing,
     )
     (; backend, model, qois) = prob
     check_germ_rows(model, U)
     check_warmstart(warmstart, backend)
-    check_positive("ntasks", ntasks)
 
     n = size(U, 2)
     X = physical_injections(model, U)
@@ -48,21 +48,29 @@ function solve_samples(
     converged = fill(false, n)
 
     chained = warmstart != :off
-    blocks = Iterators.partition(solve_order(X, warmstart), cld(n, ntasks))
-    tasks = [
-        Threads.@spawn solve_block!(values, converged, prob, U, X, block, chained)
-            for block in blocks
-    ]
-
-    failures = FailedSample[]
-    for task in tasks
-        append!(failures, fetch(task))
+    failures = solve_blocks(scheduler, solve_order(X, warmstart)) do block
+        solve_block!(values, converged, prob, U, X, block, chained)
     end
     sort!(failures; by = f -> f.index)
 
     keep = findall(converged)
     return PPFResult(method, qois, values[:, keep], keep, failures, n, n)
 end
+
+"""
+    solve_blocks(f, scheduler, order) -> Vector{FailedSample}
+
+Solve the samples in `order` by dividing into separate blocks.
+
+`order` holds the sample indices. A block is a single slice of it. `f` solves one block and
+returns the samples that failed. Every block gets its own state tracked by the backend,
+so that warm starts are only re-used within the same block. The scheduler decides how to run the
+blocks. If `scheduler` is `nothing`, the blocks are run serially in the current task.
+
+Without a scheduler there is one block. Load OhMyThreads.jl to run the blocks on separate
+tasks.
+"""
+solve_blocks(f, ::Nothing, order) = f(order)
 
 function solve_block!(
         values::Matrix{Float64},
