@@ -63,7 +63,14 @@ struct ViolationEvent{Q <: AbstractQoI} <: AbstractQoI
     hi::Float64
 end
 
+"""
+    violates(v::ViolationEvent, x)
+
+True when `x` lies outside the band `[v.lo, v.hi]`.
+"""
+violates(v::ViolationEvent, x::Real) = !(v.lo <= x <= v.hi)
+
 function extract(state, b::AbstractPFBackend, v::ViolationEvent)
     x = extract(state, b, v.qoi)
-    return Float64(!(v.lo <= x <= v.hi))
+    return Float64(violates(v, x))
 end

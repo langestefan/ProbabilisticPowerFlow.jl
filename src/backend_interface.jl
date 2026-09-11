@@ -132,10 +132,9 @@ Run a deterministic power flow solve on `state`.
 With `warmstart === nothing` the backend must reset to a deterministic initial point
 such as a flat start. Otherwise `warmstart` is a previously solved state.
 
-This is a method of `CommonSolve.solve!`, the definition here only exists to document
-the interface. The backend must always implement `CommonSolve.solve!`.
+This is a method of `CommonSolve.solve!`.
 """
-function solve! end
+CommonSolve.solve!(state, ::AbstractPFBackend)
 
 """
     extract(state, backend::AbstractPFBackend, qoi::AbstractQoI) -> Float64
