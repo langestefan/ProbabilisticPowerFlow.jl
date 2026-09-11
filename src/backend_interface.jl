@@ -167,13 +167,15 @@ function linearize end
 
 """
     PowerModelsBackend(data; alg = PowerModels.NativeNewton())
+    PowerModelsBackend(filename; alg = PowerModels.NativeNewton())
 
 An [`AbstractPFBackend`](@ref) solving the AC power flow with
 [PowerModels.jl](https://github.com/lanl-ansi/PowerModels.jl).
 
 `data` is a PowerModels network data dictionary in per unit, as returned by
 `PowerModels.parse_file`. It is validated and deep copied on construction, so mutating
-the dictionary afterwards does not change the backend. `alg` is the solver algorithm
+the dictionary afterwards does not change the backend. `filename` is a network file that
+`PowerModels.parse_file` can read, such as a MATPOWER `.m` file. `alg` is the solver algorithm
 handed to `PowerModels._solve_nl`, which defaults to a damped Newton method on the
 analytic sparse Jacobian.
 
@@ -184,7 +186,7 @@ assignment at the slack bus.
 ```julia
 using ProbabilisticPowerFlow, PowerModels
 
-backend = PowerModelsBackend(PowerModels.parse_file("case5.m"))
+backend = PowerModelsBackend("case5.m")
 state = init_state(backend, [ComponentRef(ComponentField.Pd, 1)])
 set_injections!(state, backend, [0.5])
 info = solve!(state, backend)
