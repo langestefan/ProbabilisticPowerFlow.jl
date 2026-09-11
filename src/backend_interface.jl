@@ -192,10 +192,10 @@ extract(state, backend, VoltageMagnitude(3))
 ```
 """
 struct PowerModelsBackend{A} <: AbstractPFBackend
-    data::Dict{String,Any}
+    data::Dict{String, Any}
     alg::A
     # bus pair to branch id and whether the pair is read at the branch's from end
-    branch_lookup::Dict{Tuple{Int,Int},Tuple{String,Bool}}
+    branch_lookup::Dict{Tuple{Int, Int}, Tuple{String, Bool}}
     # bus pairs joined by parallel branches, for which a branch flow is ambiguous
-    ambiguous_pairs::Set{Tuple{Int,Int}}
+    ambiguous_pairs::Set{Tuple{Int, Int}}
 end

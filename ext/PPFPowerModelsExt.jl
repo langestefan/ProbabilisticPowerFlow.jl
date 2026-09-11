@@ -23,7 +23,7 @@ function PPF.PowerModelsBackend(data::AbstractDict; alg = PM.NativeNewton())
         haskey(data, table) || throw(
             ArgumentError(
                 "expected a PowerModels network data dictionary, missing table " *
-                "$(repr(table))",
+                    "$(repr(table))",
             ),
         )
     end
@@ -35,10 +35,10 @@ function PPF.PowerModelsBackend(data::AbstractDict; alg = PM.NativeNewton())
 
     # More informative error than the error from calc_bus_injection
     for table in ("dcline", "switch")
-        isempty(get(data, table, Dict{String,Any}())) || throw(
+        isempty(get(data, table, Dict{String, Any}())) || throw(
             ArgumentError(
                 "networks with a non-empty $(repr(table)) table are not supported by " *
-                "the native PowerModels power flow",
+                    "the native PowerModels power flow",
             ),
         )
     end
@@ -52,15 +52,15 @@ function PPF.PowerModelsBackend(data::AbstractDict; alg = PM.NativeNewton())
             throw(
                 ArgumentError(
                     "bus $(bus["index"]) has bus_type $(bus["bus_type"]) but no active " *
-                    "generator",
+                        "generator",
                 ),
             )
         end
     end
 
     # Look up branch quantitys of interest by bus pair, and record ambiguous pairs
-    branch_lookup = Dict{Tuple{Int,Int},Tuple{String,Bool}}()
-    ambiguous_pairs = Set{Tuple{Int,Int}}()
+    branch_lookup = Dict{Tuple{Int, Int}, Tuple{String, Bool}}()
+    ambiguous_pairs = Set{Tuple{Int, Int}}()
     for (id, br) in data["branch"]
         br["br_status"] == 0 && continue
         f = br["f_bus"]::Int
@@ -74,7 +74,7 @@ function PPF.PowerModelsBackend(data::AbstractDict; alg = PM.NativeNewton())
         end
     end
 
-    work = Dict{String,Any}(k => v for (k, v) in deepcopy(data))
+    work = Dict{String, Any}(k => v for (k, v) in deepcopy(data))
     return PowerModelsBackend(work, alg, branch_lookup, ambiguous_pairs)
 end
 
@@ -83,15 +83,15 @@ end
 
 Mutable solver state of a [`PowerModelsBackend`](@ref).
 """
-mutable struct PMState{S,D}
-    data::Dict{String,Any}
+mutable struct PMState{S, D}
+    data::Dict{String, Any}
     sys::S
     pf_data::D
     net_base::Vector{Float64}
     cold_start::Vector{Float64}
-    slot_rows::Vector{Tuple{Int,Bool,Float64}}
+    slot_rows::Vector{Tuple{Int, Bool, Float64}}
     solved::Bool
-    flows::Union{Nothing,Dict{String,Any}}
+    flows::Union{Nothing, Dict{String, Any}}
     last_solution::Vector{Float64}
     has_solution::Bool
 end
@@ -102,7 +102,7 @@ function slot_sign(field::ComponentField.T)
     return is_p, sign
 end
 
-function resolve_slot(work::Dict{String,Any}, ref::ComponentRef)
+function resolve_slot(work::Dict{String, Any}, ref::ComponentRef)
     if ref.field === ComponentField.Pd || ref.field === ComponentField.Qd
         table, buskey, statuskey = "load", "load_bus", "status"
     elseif ref.field === ComponentField.Pg
@@ -111,10 +111,10 @@ function resolve_slot(work::Dict{String,Any}, ref::ComponentRef)
         throw(
             ArgumentError(
                 "unsupported component reference $(ref). The PowerModels backend can " *
-                "only assign quantities carried by the solver's parameter vector, " *
-                "which are Pd and Qd on loads and Pg on generators. A voltage setpoint " *
-                "is compiled into the residual function and reactive generation is " *
-                "solved for, so neither can be written per sample.",
+                    "only assign quantities carried by the solver's parameter vector, " *
+                    "which are Pd and Qd on loads and Pg on generators. A voltage setpoint " *
+                    "is compiled into the residual function and reactive generation is " *
+                    "solved for, so neither can be written per sample.",
             ),
         )
     end
@@ -126,7 +126,7 @@ function resolve_slot(work::Dict{String,Any}, ref::ComponentRef)
     comp[statuskey] == 0 && throw(
         ArgumentError(
             "component id $(ref.id) in table $(repr(table)) is inactive. An injection " *
-            "assigned to it would be silently ignored.",
+                "assigned to it would be silently ignored.",
         ),
     )
 
@@ -135,14 +135,14 @@ function resolve_slot(work::Dict{String,Any}, ref::ComponentRef)
     is_slack_bus(bus) && throw(
         ArgumentError(
             "cannot assign an injection at the slack bus $(busid). The slack balances " *
-            "the network, so the value would be silently ignored.",
+                "the network, so the value would be silently ignored.",
         ),
     )
     if ref.field === ComponentField.Qd && is_pv_bus(bus)
         throw(
             ArgumentError(
                 "cannot assign reactive load at PV bus $(busid). The voltage setpoint " *
-                "absorbs it, so the value would be silently ignored.",
+                    "absorbs it, so the value would be silently ignored.",
             ),
         )
     end
@@ -157,7 +157,7 @@ field_key(f::ComponentField.T) =
 # index, whether it is active or reactive, and its sign. Also returns each assigned
 # component's original value, which fixed_injections needs.
 function map_slots(work, pf_data, refs)
-    slot_rows = Vector{Tuple{Int,Bool,Float64}}(undef, length(refs))
+    slot_rows = Vector{Tuple{Int, Bool, Float64}}(undef, length(refs))
     originals = Vector{Float64}(undef, length(refs))
     for (j, ref) in enumerate(refs)
         busid, originals[j] = resolve_slot(work, ref)
@@ -175,7 +175,7 @@ function fixed_injections(p0, slot_rows, originals)
     net_base = copy(p0)
     for ((row, is_p, sign), original) in zip(slot_rows, originals)
         if is_p
-            net_base[2row-1] -= sign * original
+            net_base[2row - 1] -= sign * original
         else
             net_base[2row] -= sign * original
         end
@@ -219,14 +219,14 @@ end
 #   injection is active or reactive, and the sign to apply: +1 for a load, -1 for a
 #   generator
 function PPF.set_injections!(
-    state::PMState,
-    ::PowerModelsBackend,
-    x::AbstractVector{<:Real},
-)
+        state::PMState,
+        ::PowerModelsBackend,
+        x::AbstractVector{<:Real},
+    )
     length(x) == length(state.slot_rows) || throw(
         DimensionMismatch(
             "injection vector has length $(length(x)), expected " *
-            "$(length(state.slot_rows))",
+                "$(length(state.slot_rows))",
         ),
     )
 
@@ -238,7 +238,7 @@ function PPF.set_injections!(
     @inbounds for j in eachindex(state.slot_rows)
         row, is_p, sign = state.slot_rows[j]
         if is_p
-            net[2row-1] += sign * x[j] # active power injection
+            net[2row - 1] += sign * x[j] # active power injection
         else
             net[2row] += sign * x[j] # reactive power injection
         end
@@ -256,7 +256,7 @@ function write_solution!(state::PMState, x::AbstractVector{Float64})
         bus = data["bus"]["$(bid)"]
         t = pf.bus_type_idx[i]
         if is_pq_bus(t)
-            bus["vm"] = x[2i-1]
+            bus["vm"] = x[2i - 1]
             bus["va"] = x[2i]
         elseif is_pv_bus(t)
             bus["va"] = x[2i]
@@ -275,7 +275,7 @@ function PPF.solve!(state::PMState, b::PowerModelsBackend; warmstart = nothing)
         throw(
             ArgumentError(
                 "warmstart must be a previously solved state of the PowerModels " *
-                "backend, got $(typeof(warmstart))",
+                    "backend, got $(typeof(warmstart))",
             ),
         )
     end
@@ -325,7 +325,7 @@ function branch_flow(s::PMState, b::PowerModelsBackend, from::Int, to::Int)
     key in b.ambiguous_pairs && throw(
         ArgumentError(
             "parallel branches between buses $(from) and $(to) make a branch flow " *
-            "quantity ambiguous",
+                "quantity ambiguous",
         ),
     )
     entry = get(b.branch_lookup, key, nothing)

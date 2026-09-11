@@ -6,7 +6,7 @@
     ProbabilisticPowerFlow.extract(s, ::DictBackend, q::VoltageMagnitude) = s[q.bus]
 end
 
-@testitem "QoI leaves compare equal by value" tags=[:unit, :fast] begin
+@testitem "QoI leaves compare equal by value" tags = [:unit, :fast] begin
     @test VoltageMagnitude(2) == VoltageMagnitude(2)
     @test VoltageMagnitude(2) != VoltageMagnitude(3)
     @test VoltageAngle(2) == VoltageAngle(2)
@@ -18,19 +18,19 @@ end
     @test isbitstype(ViolationEvent{VoltageMagnitude})
 end
 
-@testitem "extract on a ViolationEvent delegates to its inner QoI" setup=[Backends] tags=[
+@testitem "extract on a ViolationEvent delegates to its inner QoI" setup = [Backends] tags = [
     :unit,
     :fast,
 ] begin
     b = VecBackend()
     v = ViolationEvent(VoltageMagnitude(2), 0.95, 1.05)
 
-    @test extract([1.0, 1.00], b, v) == 0.0
-    @test extract([1.0, 1.10], b, v) == 1.0
-    @test extract([1.0, 0.90], b, v) == 1.0
+    @test extract([1.0, 1.0], b, v) == 0.0
+    @test extract([1.0, 1.1], b, v) == 1.0
+    @test extract([1.0, 0.9], b, v) == 1.0
 end
 
-@testitem "The violation band is closed at both ends" setup=[Backends] tags=[:unit, :fast] begin
+@testitem "The violation band is closed at both ends" setup = [Backends] tags = [:unit, :fast] begin
     b = VecBackend()
     v = ViolationEvent(VoltageMagnitude(1), 0.95, 1.05)
 
@@ -40,7 +40,7 @@ end
     @test extract([nextfloat(1.05)], b, v) == 1.0
 end
 
-@testitem "Infinite bounds give a one-sided limit" setup=[Backends] tags=[:unit, :fast] begin
+@testitem "Infinite bounds give a one-sided limit" setup = [Backends] tags = [:unit, :fast] begin
     b = VecBackend()
     upper = ViolationEvent(VoltageMagnitude(1), -Inf, 1.05)
     lower = ViolationEvent(VoltageMagnitude(1), 0.95, Inf)
@@ -51,24 +51,24 @@ end
     @test extract([0.9], b, lower) == 1.0
 end
 
-@testitem "A ViolationEvent needs no method from the backend" setup=[Backends] tags=[
+@testitem "A ViolationEvent needs no method from the backend" setup = [Backends] tags = [
     :unit,
     :fast,
 ] begin
     v = ViolationEvent(VoltageMagnitude(2), 0.95, 1.05)
 
-    @test extract([1.0, 1.10], VecBackend(), v) == 1.0
-    @test extract(Dict(1 => 1.0, 2 => 1.10), DictBackend(), v) == 1.0
+    @test extract([1.0, 1.1], VecBackend(), v) == 1.0
+    @test extract(Dict(1 => 1.0, 2 => 1.1), DictBackend(), v) == 1.0
 end
 
-@testitem "extract on a ViolationEvent is type stable" setup=[Backends] tags=[:unit, :fast] begin
+@testitem "extract on a ViolationEvent is type stable" setup = [Backends] tags = [:unit, :fast] begin
     b = VecBackend()
     v = ViolationEvent(VoltageMagnitude(2), 0.95, 1.05)
 
-    @test @inferred(extract([1.0, 1.10], b, v)) isa Float64
+    @test @inferred(extract([1.0, 1.1], b, v)) isa Float64
 end
 
-@testitem "A NaN reading counts as a violation" setup=[Backends] tags=[:unit, :fast] begin
+@testitem "A NaN reading counts as a violation" setup = [Backends] tags = [:unit, :fast] begin
     b = VecBackend()
     v = ViolationEvent(VoltageMagnitude(1), 0.95, 1.05)
 

@@ -9,7 +9,7 @@ model. Everything else is derived from it, by a transform or by an assignment to
 physical quantity. How germ variables are correlated is described by the copula in
 [`UncertaintyModel`](@ref).
 """
-struct GermVariable{D<:UnivariateDistribution}
+struct GermVariable{D <: UnivariateDistribution}
     id::String
     dist::D
 end
@@ -29,7 +29,7 @@ It is allowed to assign the same germ variable to multiple components, which exp
 perfect correlation between those components. An example could be a constant powerfactor
 load.
 """
-struct Assignment{T<:AbstractTransform}
+struct Assignment{T <: AbstractTransform}
     variable::String
     target::ComponentRef
     transform::T
@@ -60,17 +60,17 @@ declared germ variable, every germ variable is referenced by at least one assign
 the dependence dimension matches. Component existence in the network is the backend's
 half, enforced by [`init_state`](@ref).
 """
-struct UncertaintyModel{C,V<:AbstractVector{<:GermVariable},A<:AbstractVector{<:Assignment}}
+struct UncertaintyModel{C, V <: AbstractVector{<:GermVariable}, A <: AbstractVector{<:Assignment}}
     variables::V
     assignments::A
     dependence::C
     varindex::Vector{Int}   # assignment j reads germ value varindex[j]
 
     function UncertaintyModel(
-        variables::AbstractVector{<:GermVariable},
-        assignments::AbstractVector{<:Assignment},
-        dependence::C,
-    ) where {C}
+            variables::AbstractVector{<:GermVariable},
+            assignments::AbstractVector{<:Assignment},
+            dependence::C,
+        ) where {C}
         ids = getfield.(variables, :id)
         if length(unique(ids)) != length(ids)
             throw(ArgumentError("duplicate germ variable ids: $(ids)"))
@@ -84,7 +84,7 @@ struct UncertaintyModel{C,V<:AbstractVector{<:GermVariable},A<:AbstractVector{<:
                 throw(
                     ArgumentError(
                         "assignment $(j) references undeclared germ variable " *
-                        "$(repr(a.variable))",
+                            "$(repr(a.variable))",
                     ),
                 )
             end
@@ -107,7 +107,7 @@ struct UncertaintyModel{C,V<:AbstractVector{<:GermVariable},A<:AbstractVector{<:
             throw(
                 ArgumentError(
                     "dependence dimension $(d) does not match the number of germ " *
-                    "variables $(length(variables))",
+                        "variables $(length(variables))",
                 ),
             )
         end
@@ -115,7 +115,7 @@ struct UncertaintyModel{C,V<:AbstractVector{<:GermVariable},A<:AbstractVector{<:
         # collect keeps a concrete element type when the inputs are homogeneous
         vars = collect(variables)
         assigns = collect(assignments)
-        return new{C,typeof(vars),typeof(assigns)}(vars, assigns, dependence, varindex)
+        return new{C, typeof(vars), typeof(assigns)}(vars, assigns, dependence, varindex)
     end
 end
 
@@ -146,17 +146,17 @@ Map one sample of independent uniforms `u ∈ (0,1)^d` to the physical injection
 vector `x`.
 """
 function to_physical!(
-    x::AbstractVector{Float64},
-    m::UncertaintyModel,
-    u::AbstractVector{<:Real},
-    germ::AbstractVector{Float64},
-)
+        x::AbstractVector{Float64},
+        m::UncertaintyModel,
+        u::AbstractVector{<:Real},
+        germ::AbstractVector{Float64},
+    )
     # loop over dimension validations
     for (name, v, n) in (
-        ("u", u, germ_dim(m)),
-        ("germ", germ, germ_dim(m)),
-        ("x", x, length(m.assignments)),
-    )
+            ("u", u, germ_dim(m)),
+            ("germ", germ, germ_dim(m)),
+            ("x", x, length(m.assignments)),
+        )
         if length(v) != n
             throw(DimensionMismatch("$(name) has length $(length(v)), expected $(n)"))
         end

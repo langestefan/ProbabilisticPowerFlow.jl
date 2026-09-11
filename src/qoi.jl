@@ -57,7 +57,7 @@ methods such as importance sampling and subset simulation can dispatch on it and
 the specific event they're looking for. The Monte Carlo mean is the violation
 probability of the event.
 """
-struct ViolationEvent{Q<:AbstractQoI} <: AbstractQoI
+struct ViolationEvent{Q <: AbstractQoI} <: AbstractQoI
     qoi::Q
     lo::Float64
     hi::Float64

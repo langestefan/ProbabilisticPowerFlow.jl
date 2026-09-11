@@ -47,7 +47,7 @@ end
     @test parentmodule(typeof(b)) === ProbabilisticPowerFlow
     @test b.alg isa PowerModels.NativeNewton
 
-    @test_throws ArgumentError PowerModelsBackend(Dict{String,Any}("per_unit" => true))
+    @test_throws ArgumentError PowerModelsBackend(Dict{String, Any}("per_unit" => true))
 
     notpu = deepcopy(data)
     notpu["per_unit"] = false
@@ -120,9 +120,9 @@ end
     data = pm_case5()
     b = PowerModelsBackend(data)
 
-    refs = [ComponentRef(ComponentField.Pd, load_at(data, bus)) for bus = 3:5]
+    refs = [ComponentRef(ComponentField.Pd, load_at(data, bus)) for bus in 3:5]
     state = init_state(b, refs)
-    set_injections!(state, b, [base_pd(data, bus) for bus = 3:5])
+    set_injections!(state, b, [base_pd(data, bus) for bus in 3:5])
     info = solve!(state, b)
 
     @test info.converged
@@ -130,9 +130,9 @@ end
     @test isfinite(info.residual)
 
     ref = PowerModels.compute_ac_pf(data)["solution"]["bus"]
-    for bus = 1:5
-        @test extract(state, b, VoltageMagnitude(bus)) ≈ ref["$(bus)"]["vm"] atol = 1e-6
-        @test extract(state, b, VoltageAngle(bus)) ≈ ref["$(bus)"]["va"] atol = 1e-6
+    for bus in 1:5
+        @test extract(state, b, VoltageMagnitude(bus)) ≈ ref["$(bus)"]["vm"] atol = 1.0e-6
+        @test extract(state, b, VoltageAngle(bus)) ≈ ref["$(bus)"]["va"] atol = 1.0e-6
     end
 end
 
@@ -184,9 +184,9 @@ end
     set_injections!(c, b, [0.4, 0.1])
     @test solve!(c, b).converged
 
-    for bus = 1:5
+    for bus in 1:5
         @test extract(a, b, VoltageMagnitude(bus)) ≈ extract(c, b, VoltageMagnitude(bus)) atol =
-            1e-10
+            1.0e-10
     end
 
     d = init_state(b, refs)
@@ -199,18 +199,18 @@ end
     [:integration, :powermodels] setup = [PMCase5] begin
     data = pm_case5()
     b = PowerModelsBackend(data)
-    refs = [ComponentRef(ComponentField.Pd, load_at(data, bus)) for bus = 3:5]
+    refs = [ComponentRef(ComponentField.Pd, load_at(data, bus)) for bus in 3:5]
 
     state = init_state(b, refs)
-    set_injections!(state, b, [base_pd(data, bus) for bus = 3:5])
+    set_injections!(state, b, [base_pd(data, bus) for bus in 3:5])
     @test solve!(state, b).converged
 
     untouched = init_state(b, ComponentRef[])
     @test solve!(untouched, b).converged
 
-    for bus = 1:5
+    for bus in 1:5
         @test extract(state, b, VoltageMagnitude(bus)) ≈
-              extract(untouched, b, VoltageMagnitude(bus)) atol = 1e-10
+            extract(untouched, b, VoltageMagnitude(bus)) atol = 1.0e-10
     end
 end
 
@@ -218,7 +218,7 @@ end
     [PMCase5] begin
     data = pm_case5()
     b = PowerModelsBackend(data)
-    refs = [ComponentRef(ComponentField.Pd, load_at(data, bus)) for bus = 3:5]
+    refs = [ComponentRef(ComponentField.Pd, load_at(data, bus)) for bus in 3:5]
     target = [0.5, 0.4, 0.7]
 
     fresh = init_state(b, refs)
@@ -232,10 +232,10 @@ end
     after = solve!(used, b)
 
     @test after.iterations == clean.iterations
-    @test after.residual ≈ clean.residual atol = 1e-14
-    for bus = 1:5
+    @test after.residual ≈ clean.residual atol = 1.0e-14
+    for bus in 1:5
         @test extract(used, b, VoltageMagnitude(bus)) ≈
-              extract(fresh, b, VoltageMagnitude(bus)) atol = 1e-12
+            extract(fresh, b, VoltageMagnitude(bus)) atol = 1.0e-12
     end
 end
 
@@ -265,13 +265,13 @@ end
     b = PowerModelsBackend(data)
     @test supports_warmstart(b)
 
-    refs = [ComponentRef(ComponentField.Pd, load_at(data, bus)) for bus = 3:5]
+    refs = [ComponentRef(ComponentField.Pd, load_at(data, bus)) for bus in 3:5]
 
     seed = init_state(b, refs)
     set_injections!(seed, b, [0.46, 0.41, 0.61])
     @test solve!(seed, b).converged
 
-    nearby = [0.45, 0.40, 0.60]
+    nearby = [0.45, 0.4, 0.6]
     cold = init_state(b, refs)
     set_injections!(cold, b, nearby)
     cold_info = solve!(cold, b)
@@ -283,7 +283,7 @@ end
     @test warm_info.converged
     @test warm_info.iterations < cold_info.iterations
     @test extract(warm, b, VoltageMagnitude(5)) ≈ extract(cold, b, VoltageMagnitude(5)) atol =
-        1e-8
+        1.0e-8
 
     @test_throws ArgumentError solve!(warm, b; warmstart = :not_a_state)
 end
@@ -292,14 +292,14 @@ end
     [PMCase5] begin
     data = pm_case5()
     b = PowerModelsBackend(data)
-    refs = [ComponentRef(ComponentField.Pd, load_at(data, bus)) for bus = 3:5]
+    refs = [ComponentRef(ComponentField.Pd, load_at(data, bus)) for bus in 3:5]
     state = init_state(b, refs)
 
     set_injections!(state, b, [200.0, 200.0, 200.0])
     bad = solve!(state, b)
     @test !bad.converged
 
-    set_injections!(state, b, [0.45, 0.40, 0.60])
+    set_injections!(state, b, [0.45, 0.4, 0.6])
     good = solve!(state, b)
     @test good.converged
     @test 0.9 < extract(state, b, VoltageMagnitude(5)) < 1.1
@@ -347,9 +347,9 @@ end
 
     vm = extract(state, b, VoltageMagnitude(5))
     @test extract(state, b, ViolationEvent(VoltageMagnitude(5), vm - 0.01, vm + 0.01)) ==
-          0.0
+        0.0
     @test extract(state, b, ViolationEvent(VoltageMagnitude(5), vm + 0.01, vm + 0.02)) ==
-          1.0
+        1.0
 end
 
 @testitem "set_injections! checks the length of its input" tags =
