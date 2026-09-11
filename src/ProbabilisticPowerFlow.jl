@@ -4,6 +4,7 @@ using EnumX: @enumx
 using Distributions: UnivariateDistribution, quantile
 using Copulas: IndependentCopula, inverse_rosenblatt, SklarDist
 using Statistics: Statistics, mean, std
+using Random: Random, AbstractRNG
 
 using CommonSolve: CommonSolve, solve, solve!
 
@@ -14,6 +15,8 @@ include("uncertainty.jl")
 include("problem.jl")
 include("methods.jl")
 include("result.jl")
+include("sample_loop.jl")
+include("monte_carlo.jl")
 
 # Exported symbols needed to implement the backend interface
 export ComponentRef, ComponentField, ComponentKind, SolveInfo, kind
@@ -33,7 +36,7 @@ export GermVariable, Assignment, UncertaintyModel, germ_dim, germ_dist, targets
 export to_physical, to_physical!
 
 # Problems, methods and results
-export PPFProblem, AbstractPPFMethod, solve
+export PPFProblem, AbstractPPFMethod, solve, MonteCarlo
 export PPFResult, FailedSample, n_converged, failure_rate
 export qoi_samples, violation_probability
 
