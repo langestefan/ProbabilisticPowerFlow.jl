@@ -14,6 +14,7 @@ include("transform.jl")
 include("uncertainty.jl")
 include("problem.jl")
 include("sampling.jl")
+include("samplers.jl")
 include("result.jl")
 include("show.jl")
 

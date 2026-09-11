@@ -21,6 +21,8 @@ and this project adheres to [Semantic Versioning].
 - `PPFProblem`, `solve` as a method of `CommonSolve.solve`, and `MonteCarlo` sampling.
 - `LatinHypercube` sampling, and `QuasiMC` for any QuasiMonteCarlo.jl sampler, loaded
   as a package extension.
+- Warm starts with `warmstart = :chain` or `:sorted`, and solves split over `ntasks`
+  tasks, as keywords of `solve`.
 - `PPFResult` with diverged samples kept as `FailedSample`, and the statistics
   `mean`, `std`, `quantile` and `violation_probability`.
 - Compact one-line and tree displays for models, problems, results and backends.
