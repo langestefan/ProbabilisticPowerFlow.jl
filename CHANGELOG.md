@@ -19,6 +19,8 @@ and this project adheres to [Semantic Versioning].
 - `UncertaintyModel` from germ variables, assignments and a Copulas.jl copula, with
   `IdentityTransform` and `AffineTransform`.
 - `PPFProblem`, `solve` as a method of `CommonSolve.solve`, and `MonteCarlo` sampling.
+- `LatinHypercube` sampling, and `QuasiMC` for any QuasiMonteCarlo.jl sampler, loaded
+  as a package extension.
 - `PPFResult` with diverged samples kept as `FailedSample`, and the statistics
   `mean`, `std`, `quantile` and `violation_probability`.
 - Compact one-line and tree displays for models, problems, results and backends.

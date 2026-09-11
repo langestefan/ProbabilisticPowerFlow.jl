@@ -4,7 +4,7 @@ using EnumX: @enumx
 using Distributions: UnivariateDistribution, quantile
 using Copulas: IndependentCopula, inverse_rosenblatt, SklarDist
 using Statistics: Statistics, mean, std
-using Random: Random, AbstractRNG
+using Random: Random, AbstractRNG, randperm
 
 using CommonSolve: CommonSolve, solve, solve!
 
@@ -13,10 +13,8 @@ include("qoi.jl")
 include("transform.jl")
 include("uncertainty.jl")
 include("problem.jl")
-include("methods.jl")
+include("sampling.jl")
 include("result.jl")
-include("sample_loop.jl")
-include("monte_carlo.jl")
 include("show.jl")
 
 # Exported symbols needed to implement the backend interface
@@ -37,7 +35,8 @@ export GermVariable, Assignment, UncertaintyModel, germ_dim, germ_dist, targets
 export to_physical, to_physical!
 
 # Problems, methods and results
-export PPFProblem, AbstractPPFMethod, solve, MonteCarlo
+export PPFProblem, AbstractPPFMethod, solve
+export MonteCarlo, LatinHypercube, QuasiMC
 export PPFResult, FailedSample, n_converged, failure_rate
 export qoi_samples, violation_probability
 

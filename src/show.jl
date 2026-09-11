@@ -125,6 +125,9 @@ Base.show(io::IO, ::MIME"text/plain", p::PPFProblem) = show_tree(
 )
 
 Base.show(io::IO, m::MonteCarlo) = print(io, "MonteCarlo(n = ", m.n, ")")
+Base.show(io::IO, m::LatinHypercube) = print(io, "LatinHypercube(n = ", m.n, ")")
+Base.show(io::IO, m::QuasiMC) =
+    print(io, "QuasiMC(", nameof(typeof(m.sampler)), ", n = ", m.n, ")")
 
 result_type(r::PPFResult) = "PPFResult{$(nameof(typeof(r.method)))}"
 

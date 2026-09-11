@@ -60,6 +60,10 @@ end
         "\"a\" → Pd[3] via AffineTransform(2.0, 1.0)"
 
     @test line(MonteCarlo(n = 7)) == "MonteCarlo(n = 7)"
+    @test line(LatinHypercube(n = 7)) == "LatinHypercube(n = 7)"
+
+    using QuasiMonteCarlo: HaltonSample
+    @test line(QuasiMC(HaltonSample(); n = 8)) == "QuasiMC(HaltonSample, n = 8)"
 end
 
 @testitem "A model displays as a tree" tags = [:unit, :fast] setup = [ShowSetup] begin

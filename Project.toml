@@ -16,9 +16,11 @@ Statistics = "10745b16-79ce-11e8-11f9-7d13ad32a3b2"
 
 [weakdeps]
 PowerModels = "c36e90e8-916a-50a6-bd94-075b64ef4655"
+QuasiMonteCarlo = "8a4e6c94-4038-4cdc-81c3-7e6ffdb2a71b"
 
 [extensions]
 PPFPowerModelsExt = "PowerModels"
+PPFQuasiMonteCarloExt = "QuasiMonteCarlo"
 
 [compat]
 CommonSolve = "0.2"
@@ -26,6 +28,7 @@ Copulas = "0.1.41"
 Distributions = "0.25"
 EnumX = "1"
 PowerModels = "0.22"
+QuasiMonteCarlo = "0.4"
 Random = "1.10"
 Statistics = "1.10"
 julia = "1.12"
