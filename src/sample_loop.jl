@@ -4,7 +4,7 @@
 Run one deterministic power flow per column of the `d × n` matrix `U`, where each column
 is a point in `(0,1)^d`. Every solve is cold-started.
 
-A converged sample stores its quantities of interes (QoIs). A diverged sample is kept as a
+A converged sample stores its quantities of interest (QoIs). A diverged sample is kept as a
 [`FailedSample`](@ref) and does not stop the loop.
 """
 function solve_samples(

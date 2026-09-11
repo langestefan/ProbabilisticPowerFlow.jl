@@ -137,7 +137,7 @@ germ_dim(m::UncertaintyModel) = length(m.variables)
 The `ComponentRef`s of the assignments, in assignment order. This is the `refs`
 argument for [`init_state`](@ref), and the order of the physical injection vector.
 """
-targets(m::UncertaintyModel) = getfield.(m.assignments, :target)
+targets(m::UncertaintyModel)::Vector{ComponentRef} = getfield.(m.assignments, :target)
 
 """
     to_physical!(x, m::UncertaintyModel, u, germ) -> x
