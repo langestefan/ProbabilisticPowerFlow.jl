@@ -165,8 +165,8 @@ will use this if implemented. Otherwise, a finite-difference fallback can be use
 function linearize end
 
 """
-    PowerModelsBackend(data; alg = PowerModels.NativeNewton())
-    PowerModelsBackend(filename; alg = PowerModels.NativeNewton())
+    PowerModelsBackend(data; alg = PowerModels.NativeNewton(), solver_kwargs = (;))
+    PowerModelsBackend(filename; alg = PowerModels.NativeNewton(), solver_kwargs = (;))
 
 An [`AbstractPFBackend`](@ref) solving the AC power flow with
 [PowerModels.jl](https://github.com/lanl-ansi/PowerModels.jl).
@@ -176,8 +176,12 @@ An [`AbstractPFBackend`](@ref) solving the AC power flow with
 the dictionary afterwards does not change the backend. `filename` is a network file that
 `PowerModels.parse_file` can read, such as a MATPOWER `.m` file. `alg` is the solver algorithm
 handed to `PowerModels._solve_nl`, which defaults to a damped Newton method on the
-analytic sparse Jacobian.
+analytic sparse Jacobian. Any NonlinearSolve.jl algorithm works once NonlinearSolve is
+loaded.
 
+`solver_kwargs` is a `NamedTuple` of keywords passed on to `PowerModels._solve_nl`, such as
+`(abstol = 1.0e-10, maxiters = 20)` for a NonlinearSolve algorithm. `NativeNewton` takes no
+keywords and is configured through its own constructor.
 Only quantities `Pd` and `Qd` on loads and `Pg` on generators can be assigned. Anything
 else is rejected by [`init_state`](@ref). This includes `Qd` at a PV bus, and any
 assignment at the slack bus.
@@ -192,9 +196,11 @@ info = solve!(state, backend)
 extract(state, backend, VoltageMagnitude(3))
 ```
 """
-struct PowerModelsBackend{A} <: AbstractPFBackend
+struct PowerModelsBackend{A, K <: NamedTuple} <: AbstractPFBackend
     data::Dict{String, Any}
     alg::A
+    # keywords passed on to PowerModels._solve_nl
+    solver_kwargs::K
     # bus pair to branch id and whether the pair is read at the branch's from end
     branch_lookup::Dict{Tuple{Int, Int}, Tuple{String, Bool}}
     # bus pairs joined by parallel branches, for which a branch flow is ambiguous

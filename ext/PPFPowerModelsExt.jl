@@ -18,7 +18,25 @@ is_slack_bus(t::Integer) = t == 3
 is_pv_bus(bus::AbstractDict) = is_pv_bus(bus["bus_type"]::Int)
 is_slack_bus(bus::AbstractDict) = is_slack_bus(bus["bus_type"]::Int)
 
-function PPF.PowerModelsBackend(data::AbstractDict; alg = PM.NativeNewton())
+function check_solver_kwargs(alg, solver_kwargs::NamedTuple)
+    if alg isa PM.NativeNewton && !isempty(solver_kwargs)
+        throw(
+            ArgumentError(
+                "NativeNewton takes no solver_kwargs, set them in its constructor as " *
+                    "NativeNewton(; abstol, maxiters) instead",
+            ),
+        )
+    end
+    return nothing
+end
+
+function PPF.PowerModelsBackend(
+        data::AbstractDict;
+        alg = PM.NativeNewton(),
+        solver_kwargs::NamedTuple = (;),
+    )
+    check_solver_kwargs(alg, solver_kwargs)
+
     for table in ("bus", "load", "gen", "branch")
         haskey(data, table) || throw(
             ArgumentError(
@@ -75,12 +93,12 @@ function PPF.PowerModelsBackend(data::AbstractDict; alg = PM.NativeNewton())
     end
 
     work = Dict{String, Any}(k => v for (k, v) in deepcopy(data))
-    return PowerModelsBackend(work, alg, branch_lookup, ambiguous_pairs)
+    return PowerModelsBackend(work, alg, solver_kwargs, branch_lookup, ambiguous_pairs)
 end
 
 # direct dispatch on case string
-PPF.PowerModelsBackend(filename::AbstractString; alg = PM.NativeNewton()) =
-    PPF.PowerModelsBackend(PM.parse_file(filename), alg = alg)
+PPF.PowerModelsBackend(filename::AbstractString; kwargs...) =
+    PPF.PowerModelsBackend(PM.parse_file(filename); kwargs...)
 
 """
     PMState
@@ -292,7 +310,7 @@ function PPF.solve!(state::PMState, b::PowerModelsBackend; warmstart = nothing)
             copyto!(state.sys.x0, warmstart.last_solution)
         end
 
-        sol = PM._solve_nl(state.sys, b.alg)
+        sol = PM._solve_nl(state.sys, b.alg; b.solver_kwargs...)
         if sol.converged
             # sol.x is the converged solver state, voltages and PV and slack unknowns
             copyto!(state.last_solution, sol.x)

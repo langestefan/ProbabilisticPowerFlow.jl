@@ -14,6 +14,8 @@ and this project adheres to [Semantic Versioning].
   `linearize`.
 - `PowerModelsBackend`, an AC power flow backend on PowerModels.jl, loaded as a package
   extension.
+- `solver_kwargs` on `PowerModelsBackend`, passing keywords such as `abstol` and
+  `maxiters` on to a NonlinearSolve.jl algorithm.
 - Quantities of interest: `VoltageMagnitude`, `VoltageAngle`, `BranchActivePower`,
   `BranchReactivePower` and `ViolationEvent`.
 - `UncertaintyModel` from germ variables, assignments and a Copulas.jl copula, with

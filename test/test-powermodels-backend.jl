@@ -46,6 +46,8 @@ end
     @test b isa PowerModelsBackend
     @test parentmodule(typeof(b)) === ProbabilisticPowerFlow
     @test b.alg isa PowerModels.NativeNewton
+    @test b.solver_kwargs == (;)
+    @test_throws ArgumentError PowerModelsBackend(data; solver_kwargs = (abstol = 1.0e-10,))
 
     @test_throws ArgumentError PowerModelsBackend(Dict{String, Any}("per_unit" => true))
 
@@ -86,6 +88,26 @@ end
     @test solve!(state, b).converged
 
     @test_throws SystemError PowerModelsBackend(joinpath(mktempdir(), "missing.m"))
+end
+
+@testitem "Solver keywords reach the solver" tags = [:integration, :powermodels] setup =
+    [PMCase5] begin
+    # stands in for a NonlinearSolve algorithm, which accepts keywords
+    struct RecordingNewton end
+    const SEEN = Ref{NamedTuple}((;))
+    function PowerModels._solve_nl(
+            sys::PowerModels.PowerFlowSystem,
+            ::RecordingNewton;
+            kwargs...,
+        )
+        SEEN[] = NamedTuple(kwargs)
+        return PowerModels._solve_nl(sys, PowerModels.NativeNewton())
+    end
+
+    kwargs = (abstol = 1.0e-10, maxiters = 20)
+    b = PowerModelsBackend(pm_case5(); alg = RecordingNewton(), solver_kwargs = kwargs)
+    @test solve!(init_state(b, ComponentRef[]), b).converged
+    @test SEEN[] == kwargs
 end
 
 @testitem "The backend is not mutated by its caller" tags = [:integration, :powermodels] setup =
