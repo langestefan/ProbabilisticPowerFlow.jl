@@ -4,7 +4,7 @@ version = "0.1.0"
 authors = ["Stefan de Lange <langestefan@msn.com>"]
 
 [workspace]
-projects = ["test", "docs"]
+projects = ["test", "docs", "benchmark", "examples"]
 
 [deps]
 CommonSolve = "38540f10-b2f7-11e9-35d8-d573e4eb0ff2"

@@ -30,6 +30,8 @@ and this project adheres to [Semantic Versioning].
 - `PPFResult` with diverged samples kept as `FailedSample`, and the statistics
   `mean`, `std`, `quantile` and `violation_probability`.
 - Compact one-line and tree displays for models, problems, results and backends.
+- Performance benchmarks in `benchmark/`, run with AirspeedVelocity.jl locally and on
+  pull requests.
 
 <!-- Links -->
 

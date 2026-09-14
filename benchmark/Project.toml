@@ -1,0 +1,14 @@
+[deps]
+BenchmarkTools = "6e4b80f9-dd63-53aa-95a3-0cdb28fa8baf"
+Distributions = "31c24e10-a181-5473-b8eb-7969acd0382f"
+LinearSolve = "7ed4a6bd-45f5-4d41-b270-4a48e9bafcae"
+NonlinearSolve = "8913a72c-1f9b-4ce2-8d82-65094dcecaec"
+OhMyThreads = "67456a42-1dca-4109-a031-0a68de7e3ad5"
+PowerModels = "c36e90e8-916a-50a6-bd94-075b64ef4655"
+ProbabilisticPowerFlow = "a62f3996-1a83-5fb5-8093-14872f0569ef"
+QuasiMonteCarlo = "8a4e6c94-4038-4cdc-81c3-7e6ffdb2a71b"
+Random = "9a3f8284-a2c9-5f02-9a11-845980a1fd5c"
+
+[sources]
+PowerModels = {rev = "sciml-extension", url = "https://github.com/langestefan/PowerModels.jl"}
+ProbabilisticPowerFlow = {path = ".."}
