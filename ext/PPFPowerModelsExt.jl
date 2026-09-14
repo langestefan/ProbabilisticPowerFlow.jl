@@ -18,25 +18,11 @@ is_slack_bus(t::Integer) = t == 3
 is_pv_bus(bus::AbstractDict) = is_pv_bus(bus["bus_type"]::Int)
 is_slack_bus(bus::AbstractDict) = is_slack_bus(bus["bus_type"]::Int)
 
-function check_solver_kwargs(alg, solver_kwargs::NamedTuple)
-    if alg isa PM.NativeNewton && !isempty(solver_kwargs)
-        throw(
-            ArgumentError(
-                "NativeNewton takes no solver_kwargs, set them in its constructor as " *
-                    "NativeNewton(; abstol, maxiters) instead",
-            ),
-        )
-    end
-    return nothing
-end
-
 function PPF.PowerModelsBackend(
         data::AbstractDict;
         alg = PM.NativeNewton(),
         solver_kwargs::NamedTuple = (;),
     )
-    check_solver_kwargs(alg, solver_kwargs)
-
     for table in ("bus", "load", "gen", "branch")
         haskey(data, table) || throw(
             ArgumentError(
@@ -105,9 +91,10 @@ PPF.PowerModelsBackend(filename::AbstractString; kwargs...) =
 
 Mutable solver state of a [`PowerModelsBackend`](@ref).
 """
-mutable struct PMState{S, D}
+mutable struct PMState{S, C, D}
     data::Dict{String, Any}
     sys::S
+    cache::C
     pf_data::D
     net_base::Vector{Float64}
     cold_start::Vector{Float64}
@@ -214,10 +201,12 @@ function PPF.init_state(b::PowerModelsBackend, refs::AbstractVector{ComponentRef
 
     slot_rows, originals = map_slots(work, pf_data, refs)
     net_base = fixed_injections(sys.p0, slot_rows, originals)
+    cache = PM._init_nl(sys, b.alg; b.solver_kwargs...)
 
     return PMState(
         work,
         sys,
+        cache,
         pf_data,
         net_base,
         copy(sys.x0),   # cold_start
@@ -310,7 +299,7 @@ function PPF.solve!(state::PMState, b::PowerModelsBackend; warmstart = nothing)
             copyto!(state.sys.x0, warmstart.last_solution)
         end
 
-        sol = PM._solve_nl(state.sys, b.alg; b.solver_kwargs...)
+        sol = PM._solve_nl!(state.cache, state.sys, b.alg; b.solver_kwargs...)
         if sol.converged
             # sol.x is the converged solver state, voltages and PV and slack unknowns
             copyto!(state.last_solution, sol.x)

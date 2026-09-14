@@ -47,7 +47,6 @@ end
     @test parentmodule(typeof(b)) === ProbabilisticPowerFlow
     @test b.alg isa PowerModels.NativeNewton
     @test b.solver_kwargs == (;)
-    @test_throws ArgumentError PowerModelsBackend(data; solver_kwargs = (abstol = 1.0e-10,))
 
     @test_throws ArgumentError PowerModelsBackend(Dict{String, Any}("per_unit" => true))
 
@@ -108,6 +107,55 @@ end
     b = PowerModelsBackend(pm_case5(); alg = RecordingNewton(), solver_kwargs = kwargs)
     @test solve!(init_state(b, ComponentRef[]), b).converged
     @test SEEN[] == kwargs
+
+    # NativeNewton is configured through its constructor, so PowerModels rejects keywords
+    native = PowerModelsBackend(pm_case5(); solver_kwargs = (abstol = 1.0e-10,))
+    @test_throws ErrorException init_state(native, ComponentRef[])
+end
+
+@testitem "A NonlinearSolve algorithm reuses one cache per state" tags =
+    [:integration, :powermodels] setup = [PMCase5] begin
+    using NonlinearSolve: NewtonRaphson
+
+    data = pm_case5()
+    ref = ComponentRef(ComponentField.Pd, load_at(data, 3))
+    native = PowerModelsBackend(data)
+    cached = PowerModelsBackend(data; alg = NewtonRaphson(), solver_kwargs = (abstol = 1.0e-10,))
+
+    s_native = init_state(native, [ref])
+    state = init_state(cached, [ref])
+    cache = state.cache
+    @test cache !== nothing
+    @test init_state(cached, [ref]).cache !== cache
+
+    for pd in (0.3, 0.45, 0.6)
+        set_injections!(s_native, native, [pd])
+        set_injections!(state, cached, [pd])
+        @test solve!(s_native, native).converged
+        info = solve!(state, cached)
+        @test info.converged
+        @test info.iterations > 0
+        @test state.cache === cache
+        @test extract(state, cached, VoltageMagnitude(3)) ≈
+            extract(s_native, native, VoltageMagnitude(3)) atol = 1.0e-8
+    end
+
+    cold = solve!(state, cached)
+    warm = solve!(state, cached; warmstart = state)
+    @test warm.converged
+    @test warm.iterations < cold.iterations
+end
+
+@testitem "A mistyped solver keyword fails at init_state" tags =
+    [:integration, :powermodels] setup = [PMCase5] begin
+    import NonlinearSolve
+
+    b = PowerModelsBackend(
+        pm_case5();
+        alg = NonlinearSolve.NewtonRaphson(),
+        solver_kwargs = (abstl = 1.0e-10,),
+    )
+    @test_throws NonlinearSolve.SciMLBase.CommonKwargError init_state(b, ComponentRef[])
 end
 
 @testitem "The backend is not mutated by its caller" tags = [:integration, :powermodels] setup =

@@ -176,12 +176,17 @@ An [`AbstractPFBackend`](@ref) solving the AC power flow with
 the dictionary afterwards does not change the backend. `filename` is a network file that
 `PowerModels.parse_file` can read, such as a MATPOWER `.m` file. `alg` is the solver algorithm
 handed to `PowerModels._solve_nl`, which defaults to a damped Newton method on the
-analytic sparse Jacobian. Any NonlinearSolve.jl algorithm works once NonlinearSolve is
-loaded.
+analytic sparse Jacobian.
 
-`solver_kwargs` is a `NamedTuple` of keywords passed on to `PowerModels._solve_nl`, such as
+Any NonlinearSolve.jl algorithm works once NonlinearSolve is loaded. Each state then keeps
+one solver cache and reuses its allocations and symbolic factorization for every solve, so
+a sparse factorization such as `NewtonRaphson(linsolve = KLUFactorization(check_pattern = false))`
+pays off.
+
+`solver_kwargs` is a `NamedTuple` of keywords passed on to the solver, such as
 `(abstol = 1.0e-10, maxiters = 20)` for a NonlinearSolve algorithm. `NativeNewton` takes no
 keywords and is configured through its own constructor.
+
 Only quantities `Pd` and `Qd` on loads and `Pg` on generators can be assigned. Anything
 else is rejected by [`init_state`](@ref). This includes `Qd` at a PV bus, and any
 assignment at the slack bus.
@@ -203,6 +208,6 @@ struct PowerModelsBackend{A, K <: NamedTuple} <: AbstractPFBackend
     solver_kwargs::K
     # bus pair to branch id and whether the pair is read at the branch's from end
     branch_lookup::Dict{Tuple{Int, Int}, Tuple{String, Bool}}
-    # bus pairs joined by parallel branches, for which a branch flow is ambiguous
+    # bus pairs joined by parallel branches
     ambiguous_pairs::Set{Tuple{Int, Int}}
 end
