@@ -16,6 +16,8 @@ and this project adheres to [Semantic Versioning].
   extension.
 - `solver_kwargs` on `PowerModelsBackend`, passing keywords such as `abstol` and
   `maxiters` on to a NonlinearSolve.jl algorithm.
+- A NonlinearSolve.jl algorithm on `PowerModelsBackend` keeps one solver cache per state
+  and reuses it for every solve.
 - Quantities of interest: `VoltageMagnitude`, `VoltageAngle`, `BranchActivePower`,
   `BranchReactivePower` and `ViolationEvent`.
 - `UncertaintyModel` from germ variables, assignments and a Copulas.jl copula, with
