@@ -1,7 +1,7 @@
 <!--
 Thanks for making a pull request to ProbabilisticPowerFlow.jl.
 We have added this PR template to help you help us.
-Make sure to read the contributing guidelines and abide by the code of conduct.
+Make sure to read the contributing guidelines.
 See the comments below, fill the required fields, and check the items.
 -->
 
