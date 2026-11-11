@@ -10,7 +10,16 @@ import ProbabilisticPowerFlow:
     VoltageAngle,
     BranchActivePower,
     BranchReactivePower,
-    PowerModelsBackend
+    GeneratorReactivePower,
+    ShuntSusceptance,
+    PowerModelsBackend,
+    AbstractControl,
+    ReactiveLimits,
+    SwitchedShunt,
+    ControlSettings,
+    AbstractControlModel,
+    Complementarity,
+    Sigmoid
 
 is_pq_bus(t::Integer) = t == 1
 is_pv_bus(t::Integer) = t == 2
@@ -22,6 +31,8 @@ function PPF.PowerModelsBackend(
         data::AbstractDict;
         alg = PM.NativeNewton(),
         solver_kwargs::NamedTuple = (;),
+        controls::AbstractVector{<:AbstractControl} = AbstractControl[],
+        control_settings::ControlSettings = ControlSettings(),
     )
     for table in ("bus", "load", "gen", "branch")
         haskey(data, table) || throw(
@@ -78,13 +89,25 @@ function PPF.PowerModelsBackend(
         end
     end
 
+    check_controls(data, controls, control_settings)
+
     work = Dict{String, Any}(k => v for (k, v) in deepcopy(data))
-    return PowerModelsBackend(work, alg, solver_kwargs, branch_lookup, ambiguous_pairs)
+    return PowerModelsBackend(
+        work,
+        alg,
+        solver_kwargs,
+        branch_lookup,
+        ambiguous_pairs,
+        collect(AbstractControl, controls),
+        control_settings,
+    )
 end
 
 # direct dispatch on case string
 PPF.PowerModelsBackend(filename::AbstractString; kwargs...) =
     PPF.PowerModelsBackend(PM.parse_file(filename); kwargs...)
+
+include("PPFPowerModelsExt/controls.jl")
 
 """
     PMState
@@ -103,6 +126,7 @@ mutable struct PMState{S, C, D}
     flows::Union{Nothing, Dict{String, Any}}
     last_solution::Vector{Float64}
     has_solution::Bool
+    controls::ControlState
 end
 
 function slot_sign(field::ComponentField.T)
@@ -111,7 +135,8 @@ function slot_sign(field::ComponentField.T)
     return is_p, sign
 end
 
-function resolve_slot(work::Dict{String, Any}, ref::ComponentRef)
+# `limited` holds the buses under ReactiveLimits, which are PQ buses in the solve
+function resolve_slot(work::Dict{String, Any}, ref::ComponentRef, limited::Set{Int})
     if ref.field === ComponentField.Pd || ref.field === ComponentField.Qd
         table, buskey, statuskey = "load", "load_bus", "status"
     elseif ref.field === ComponentField.Pg
@@ -147,7 +172,7 @@ function resolve_slot(work::Dict{String, Any}, ref::ComponentRef)
                 "the network, so the value would be silently ignored.",
         ),
     )
-    if ref.field === ComponentField.Qd && is_pv_bus(bus)
+    if ref.field === ComponentField.Qd && is_pv_bus(bus) && !(busid in limited)
         throw(
             ArgumentError(
                 "cannot assign reactive load at PV bus $(busid). The voltage setpoint " *
@@ -165,11 +190,11 @@ field_key(f::ComponentField.T) =
 # Maps each assignment to its slot in the solver's parameter vector: the internal bus
 # index, whether it is active or reactive, and its sign. Also returns each assigned
 # component's original value, which fixed_injections needs.
-function map_slots(work, pf_data, refs)
+function map_slots(work, pf_data, refs, limited)
     slot_rows = Vector{Tuple{Int, Bool, Float64}}(undef, length(refs))
     originals = Vector{Float64}(undef, length(refs))
     for (j, ref) in enumerate(refs)
-        busid, originals[j] = resolve_slot(work, ref)
+        busid, originals[j] = resolve_slot(work, ref, limited)
         is_p, sign = slot_sign(ref.field)
         slot_rows[j] = (pf_data.am.bus_to_idx[busid], is_p, sign)
     end
@@ -194,12 +219,23 @@ end
 
 function PPF.init_state(b::PowerModelsBackend, refs::AbstractVector{ComponentRef})
     work = deepcopy(b.data)
+    remove_switched_shunts!(work, b.controls)
 
     # write injections into the parameter vector
     pf_data = PM.instantiate_pf_data(work)
+    model = b.control_settings.model
+    limits = limit_terms(work, pf_data, b.controls, model)
+    shunts = shunt_terms(work, pf_data, b.controls, model)
+    controls = ControlState(model, limits, shunts)
+    release_limited_buses!(pf_data, limits)
     sys = PM.build_pf_system(pf_data)
+    start_slots!(sys.x0, controls)
+    if has_controls(controls)
+        sys = controlled_system(sys, controls)
+    end
 
-    slot_rows, originals = map_slots(work, pf_data, refs)
+    limited = Set(pf_data.am.idx_to_bus[t.row] for t in limits)
+    slot_rows, originals = map_slots(work, pf_data, refs, limited)
     net_base = fixed_injections(sys.p0, slot_rows, originals)
     cache = PM._init_nl(sys, b.alg; b.solver_kwargs...)
 
@@ -215,6 +251,7 @@ function PPF.init_state(b::PowerModelsBackend, refs::AbstractVector{ComponentRef
         nothing,
         copy(sys.x0),   # last_solution, only read once has_solution is true
         false,
+        controls,
     )
 end
 
@@ -294,19 +331,26 @@ function PPF.solve!(state::PMState, b::PowerModelsBackend; warmstart = nothing)
     info = try
         # sys.x0 is the solver's starting point, not an injection
         if warmstart === nothing || !warmstart.has_solution
-            copyto!(state.sys.x0, state.cold_start)
+            start = state.cold_start
         else
-            copyto!(state.sys.x0, warmstart.last_solution)
+            start = warmstart.last_solution
         end
 
-        sol = PM._solve_nl!(state.cache, state.sys, b.alg; b.solver_kwargs...)
-        if sol.converged
-            # sol.x is the converged solver state, voltages and PV and slack unknowns
-            copyto!(state.last_solution, sol.x)
-            state.has_solution = true
-            write_solution!(state, sol.x)
+        if has_controls(state.controls)
+            sol, iterations = solve_controlled(state, b, start)
+        else
+            sol = solve_from(state, b, start)
+            iterations = sol.iterations
         end
-        SolveInfo(sol.converged, sol.iterations, sol.residual_norm)
+        if sol.converged
+            # sol.x is the converged solver state, voltages and PV and slack unknowns.
+            # Controlled slots are mapped to voltages for the network data, and kept in
+            # their continuous form for the next start and for extract.
+            write_solution!(state, slot_voltages!(similar(sol.x), sol.x, state.controls))
+            copyto!(state.last_solution, continuous_slots!(copy(sol.x), state.controls))
+            state.has_solution = true
+        end
+        SolveInfo(sol.converged, iterations, sol.residual_norm)
     catch err
         # Divergences are recorded
         err isa InterruptException && rethrow()
@@ -359,12 +403,40 @@ function PPF.extract(s::PMState, b::PowerModelsBackend, q::BranchReactivePower)
     return Float64(at_from ? flow["qf"] : flow["qt"])
 end
 
-function solved_label(s::PMState)
-    if s.solved
-        return "solved"
+function PPF.extract(s::PMState, ::PowerModelsBackend, q::GeneratorReactivePower)
+    c = s.controls
+    for t in c.limits
+        for g in t.gens
+            if g.id == q.gen
+                f = output_fraction(t, c, s.last_solution[slot(t)])
+                return g.qmin + (g.qmax - g.qmin) * f
+            end
+        end
     end
-    return "unsolved"
+    throw(
+        ArgumentError(
+            "GeneratorReactivePower needs ReactiveLimits on generator $(q.gen) in the " *
+                "PowerModels backend",
+        ),
+    )
 end
+
+function PPF.extract(s::PMState, ::PowerModelsBackend, q::ShuntSusceptance)
+    c = s.controls
+    for t in c.shunts
+        if t.id == q.shunt
+            susceptance, _ = shunt_level(t, c, s.last_solution[slot(t)])
+            return susceptance
+        end
+    end
+    shunt = get(get(s.data, "shunt", Dict{String, Any}()), string(q.shunt), nothing)
+    if shunt === nothing
+        throw(ArgumentError("no shunt $(q.shunt) in the network"))
+    end
+    return Float64(shunt["bs"])
+end
+
+solved_label(s::PPFPowerModelsExt.PMState) = s.solved ? "solved" : "unsolved"
 
 Base.show(io::IO, s::PMState) = print(
     io,
@@ -383,6 +455,8 @@ Base.show(io::IO, ::MIME"text/plain", s::PMState) = PPF.show_tree(
     [
         "network: $(get(s.data, "name", "unnamed"))" => PPF.network_counts(s.data),
         "injection slots: $(length(s.slot_rows))",
+        "controls: $(length(s.controls.limits)) limited buses, " *
+            "$(length(s.controls.shunts)) switched shunts",
         "solved: $(s.solved)",
         "warm start available: $(s.has_solution)",
     ],

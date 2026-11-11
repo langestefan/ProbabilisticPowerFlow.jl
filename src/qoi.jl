@@ -46,6 +46,26 @@ struct BranchReactivePower <: AbstractQoI
     to::Int
 end
 
+"""
+    GeneratorReactivePower(gen)
+
+Reactive power output of generator `gen`, in per unit. The PowerModels backend supports
+it for generators under [`ReactiveLimits`](@ref).
+"""
+struct GeneratorReactivePower <: AbstractQoI
+    gen::Int
+end
+
+"""
+    ShuntSusceptance(shunt)
+
+Susceptance of shunt `shunt`, in per unit. For a [`SwitchedShunt`](@ref) this is the
+step it was snapped to, or its continuous value when snapping is off. The fraction of samples
+on each step estimates the probability of that switching decision.
+"""
+struct ShuntSusceptance <: AbstractQoI
+    shunt::Int
+end
 
 """
     ViolationEvent(qoi, lo, hi)

@@ -8,6 +8,7 @@ using Random: Random, AbstractRNG, randperm
 
 using CommonSolve: CommonSolve, solve, solve!
 
+include("controls.jl")
 include("backend_interface.jl")
 include("qoi.jl")
 include("transform.jl")
@@ -23,12 +24,15 @@ export ComponentRef, ComponentField, ComponentKind, SolveInfo, kind
 export AbstractPFBackend, init_state, set_injections!, solve!, extract
 export supports_warmstart, linearize
 
-# Backends
+# Backends and their controls
 export PowerModelsBackend
+export AbstractControl, ReactiveLimits, SwitchedShunt, ControlSettings
+export AbstractControlModel, Complementarity, Sigmoid
 
 # Quantities of interest
 export AbstractQoI, VoltageMagnitude, VoltageAngle
 export BranchActivePower, BranchReactivePower, ViolationEvent
+export GeneratorReactivePower, ShuntSusceptance
 
 # Uncertainty models
 export AbstractTransform, IdentityTransform, AffineTransform

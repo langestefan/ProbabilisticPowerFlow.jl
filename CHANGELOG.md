@@ -18,6 +18,13 @@ and this project adheres to [Semantic Versioning].
   `maxiters` on to a NonlinearSolve.jl algorithm.
 - A NonlinearSolve.jl algorithm on `PowerModelsBackend` keeps one solver cache per state
   and reuses it for every solve.
+- Controls inside the Newton solve on `PowerModelsBackend`: `ReactiveLimits` for
+  generator reactive limits and `SwitchedShunt` for discrete shunts, which are snapped to
+  a step and solved again. `ControlSettings` picks the model and snapping. The default
+  `Complementarity` model solves the switching rules exactly through a normal map.
+  `Sigmoid` uses the smooth models of Agarwal et al. 2018 with a steepness homotopy.
+  Reactive load at a bus under `ReactiveLimits` can be sampled.
+- Quantities of interest `GeneratorReactivePower` and `ShuntSusceptance`.
 - Quantities of interest: `VoltageMagnitude`, `VoltageAngle`, `BranchActivePower`,
   `BranchReactivePower` and `ViolationEvent`.
 - `UncertaintyModel` from germ variables, assignments and a Copulas.jl copula, with

@@ -165,8 +165,8 @@ will use this if implemented. Otherwise, a finite-difference fallback can be use
 function linearize end
 
 """
-    PowerModelsBackend(data; alg = PowerModels.NativeNewton(), solver_kwargs = (;))
-    PowerModelsBackend(filename; alg = PowerModels.NativeNewton(), solver_kwargs = (;))
+    PowerModelsBackend(data; alg, solver_kwargs, controls, control_settings)
+    PowerModelsBackend(filename; kwargs...)
 
 An [`AbstractPFBackend`](@ref) solving the AC power flow with
 [PowerModels.jl](https://github.com/lanl-ansi/PowerModels.jl).
@@ -187,9 +187,15 @@ pays off.
 `(abstol = 1.0e-10, maxiters = 20)` for a NonlinearSolve algorithm. `NativeNewton` takes no
 keywords and is configured through its own constructor.
 
+`controls` is a vector of [`AbstractControl`](@ref)s: [`ReactiveLimits`](@ref) on
+generators and [`SwitchedShunt`](@ref)s. They are solved inside the Newton loop, as set
+by `control_settings`, a [`ControlSettings`](@ref). Each controlled bus keeps two unknowns,
+so the system keeps its size and sparsity pattern. `controls` defaults to none, and
+`control_settings` to `ControlSettings()`.
+
 Only quantities `Pd` and `Qd` on loads and `Pg` on generators can be assigned. Anything
-else is rejected by [`init_state`](@ref). This includes `Qd` at a PV bus, and any
-assignment at the slack bus.
+else is rejected by [`init_state`](@ref). This includes `Qd` at a PV bus, unless its
+generators are under [`ReactiveLimits`](@ref), and any assignment at the slack bus.
 
 ```julia
 using ProbabilisticPowerFlow, PowerModels
@@ -210,4 +216,6 @@ struct PowerModelsBackend{A, K <: NamedTuple} <: AbstractPFBackend
     branch_lookup::Dict{Tuple{Int, Int}, Tuple{String, Bool}}
     # bus pairs joined by parallel branches
     ambiguous_pairs::Set{Tuple{Int, Int}}
+    controls::Vector{AbstractControl}
+    control_settings::ControlSettings
 end

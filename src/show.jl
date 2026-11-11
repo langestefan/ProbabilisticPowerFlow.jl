@@ -94,14 +94,44 @@ network_counts(data::AbstractDict) = [
 Base.show(io::IO, b::PowerModelsBackend) =
     print(io, "PowerModelsBackend(", length(b.data["bus"]), " buses)")
 
-Base.show(io::IO, ::MIME"text/plain", b::PowerModelsBackend) = show_tree(
+function Base.show(io::IO, ::MIME"text/plain", b::PowerModelsBackend)
+    entries = Any["network: $(get(b.data, "name", "unnamed"))" => network_counts(b.data)]
+    if !isempty(b.controls)
+        push!(entries, "controls: $(length(b.controls))" => listing(b.controls))
+        push!(entries, "control settings: $(b.control_settings)")
+    end
+    push!(entries, "algorithm: $(nameof(typeof(b.alg)))")
+    show_tree(io, "PowerModelsBackend", entries)
+    return nothing
+end
+
+Base.show(io::IO, c::ReactiveLimits) = print(io, "ReactiveLimits(", c.gen, ")")
+
+Base.show(io::IO, c::SwitchedShunt) = print(
     io,
-    "PowerModelsBackend",
-    [
-        "network: $(get(b.data, "name", "unnamed"))" => network_counts(b.data),
-        "algorithm: $(nameof(typeof(b.alg)))",
-    ],
+    "SwitchedShunt(",
+    c.shunt,
+    ", ",
+    length(c.steps),
+    " steps, vset = ",
+    c.vset,
+    ")",
 )
+
+Base.show(io::IO, c::ControlSettings) =
+    print(io, "ControlSettings(model = ", c.model, ", snap = ", c.snap, ")")
+
+function Base.show(io::IO, m::Complementarity)
+    if m.scale === nothing
+        print(io, "Complementarity()")
+    else
+        print(io, "Complementarity(scale = ", m.scale, ")")
+    end
+    return nothing
+end
+
+Base.show(io::IO, m::Sigmoid) =
+    print(io, "Sigmoid(steepness = ", m.steepness, ", homotopy = ", m.homotopy, ")")
 
 Base.show(io::IO, p::PPFProblem) = print(
     io,

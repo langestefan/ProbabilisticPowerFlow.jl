@@ -131,3 +131,22 @@ end
         @test length(tree(x)) < 600
     end
 end
+
+@testitem "A backend with controls lists them" tags = [:integration, :powermodels] setup =
+    [ShowSetup, PMCase5] begin
+    data = pm_case5()
+    backend = PowerModelsBackend(data; controls = [ReactiveLimits(gen_at(data, 2))])
+
+    @test line(backend) == "PowerModelsBackend(5 buses)"
+    text = tree(backend)
+    @test occursin("├ controls: 1\n│ └ ReactiveLimits($(gen_at(data, 2)))", text)
+    @test occursin(
+        "├ control settings: ControlSettings(model = Complementarity(), snap = true)",
+        text,
+    )
+    @test endswith(text, "└ algorithm: NativeNewton")
+
+    state = init_state(backend, ComponentRef[])
+    @test occursin("├ controls: 1 limited buses, 0 switched shunts", tree(state))
+    @test length(tree(backend)) < 600
+end
