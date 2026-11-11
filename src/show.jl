@@ -129,6 +129,15 @@ Base.show(io::IO, m::LatinHypercube) = print(io, "LatinHypercube(n = ", m.n, ")"
 Base.show(io::IO, m::QuasiMC) =
     print(io, "QuasiMC(", nameof(typeof(m.sampler)), ", n = ", m.n, ")")
 
+function Base.show(io::IO, m::DesignPointSampling)
+    print(io, "DesignPointSampling(", m.event, ", n = ", m.n)
+    if m.shift !== nothing
+        print(io, ", β = ", round(norm2(m.shift), sigdigits = 4))
+    end
+    print(io, ")")
+    return nothing
+end
+
 result_type(r::PPFResult) = "PPFResult{$(nameof(typeof(r.method)))}"
 
 Base.show(io::IO, r::PPFResult) =
@@ -142,6 +151,7 @@ function Base.show(io::IO, ::MIME"text/plain", r::PPFResult)
             "method: $(r.method)",
             "samples: $(n_converged(r)) converged of $(r.n_samples), in $(r.n_solves) solves",
             failure_summary(r),
+            weight_summary(r)...,
             "quantities of interest: $(length(r.qois))" => listing(r.qois),
         ],
     )
@@ -154,4 +164,11 @@ function failure_summary(r::PPFResult)
     end
     percent = round(100 * failure_rate(r), digits = 1)
     return "failures: $(length(r.failures)), $(percent)% of samples"
+end
+
+function weight_summary(r::PPFResult)
+    if is_weighted(r)
+        return ["weights: importance weights"]
+    end
+    return String[]
 end

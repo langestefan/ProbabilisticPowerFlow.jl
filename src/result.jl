@@ -23,6 +23,8 @@ The output of a sampling method. Fields:
   - `failures`: the diverged samples, see [`FailedSample`](@ref).
   - `n_samples`: the total number of samples taken.
   - `n_solves`: the total number of deterministic solves attempted, failures included.
+  - `weights`: `nothing` for unweighted methods, otherwise the likelihood ratio of every
+    converged sample, in the column order of `samples`. See [`DesignPointSampling`](@ref).
 
 Invariant: `n_converged(r) + length(r.failures) == r.n_samples`.
 """
@@ -34,7 +36,25 @@ struct PPFResult{M <: AbstractPPFMethod}
     failures::Vector{FailedSample}
     n_samples::Int
     n_solves::Int
+    weights::Union{Nothing, Vector{Float64}}
 end
+
+PPFResult(
+    method::AbstractPPFMethod,
+    qois::Vector{AbstractQoI},
+    samples::Matrix{Float64},
+    sample_indices::Vector{Int},
+    failures::Vector{FailedSample},
+    n_samples::Int,
+    n_solves::Int,
+) = PPFResult(method, qois, samples, sample_indices, failures, n_samples, n_solves, nothing)
+
+"""
+    is_weighted(r::PPFResult)
+
+True when the samples of `r` carry importance weights.
+"""
+is_weighted(r::PPFResult) = r.weights !== nothing
 
 """
     n_converged(r::PPFResult)
@@ -87,9 +107,50 @@ function qoi_samples(r::PPFResult, v::ViolationEvent)
     return [Float64(violates(v, x)) for x in view(r.samples, j, :)]
 end
 
-Statistics.mean(r::PPFResult, q::AbstractQoI) = mean(qoi_samples(r, q))
-Statistics.std(r::PPFResult, q::AbstractQoI) = std(qoi_samples(r, q))
-Statistics.quantile(r::PPFResult, q::AbstractQoI, p) = quantile(qoi_samples(r, q), p)
+"""
+    weighted_samples(r::PPFResult, q::AbstractQoI)
+
+The samples of `q`, each multiplied by its importance weight. Their plain mean is the
+importance sampling estimate of the mean of `q`.
+"""
+function weighted_samples(r::PPFResult, q::AbstractQoI)
+    y = qoi_samples(r, q)
+    if is_weighted(r)
+        return y .* r.weights
+    end
+    return y
+end
+
+"""
+    mean(r::PPFResult, q::AbstractQoI)
+
+Estimated mean of `q`. For a weighted result this is the importance sampling estimate
+`(1/n) Σ wᵢ yᵢ` over the `n` converged samples.
+"""
+Statistics.mean(r::PPFResult, q::AbstractQoI) = mean(weighted_samples(r, q))
+
+function Statistics.std(r::PPFResult, q::AbstractQoI)
+    check_unweighted(r, "std")
+    return std(qoi_samples(r, q))
+end
+
+function Statistics.quantile(r::PPFResult, q::AbstractQoI, p)
+    check_unweighted(r, "quantile")
+    return quantile(qoi_samples(r, q), p)
+end
+
+function check_unweighted(r::PPFResult, name::AbstractString)
+    if is_weighted(r)
+        throw(
+            ArgumentError(
+                "$(name) is not available for a weighted result, whose samples are " *
+                    "concentrated around the design point. Use mean, " *
+                    "violation_probability or standard_error.",
+            ),
+        )
+    end
+    return nothing
+end
 
 """
     violation_probability(r::PPFResult, v::ViolationEvent)
@@ -97,3 +158,38 @@ Statistics.quantile(r::PPFResult, q::AbstractQoI, p) = quantile(qoi_samples(r, q
 Mean estimated probability of the violation event.
 """
 violation_probability(r::PPFResult, v::ViolationEvent) = mean(r, v)
+
+"""
+    standard_error(r::PPFResult, q::AbstractQoI)
+
+Standard error of [`mean`](@ref Statistics.mean(::PPFResult, ::AbstractQoI)) of `q`, the
+sample standard deviation of the (weighted) samples over `√n`. For a
+[`ViolationEvent`](@ref), `standard_error(r, v) / violation_probability(r, v)` is the
+coefficient of variation of the probability estimate, a common stopping criterion.
+
+Not meaningful for quasi-Monte Carlo point sets, whose points are not independent.
+"""
+function standard_error(r::PPFResult, q::AbstractQoI)
+    y = weighted_samples(r, q)
+    return std(y) / sqrt(length(y))
+end
+
+"""
+    effective_sample_size(r::PPFResult, v::ViolationEvent)
+
+Effective number of violating samples, `(Σ wᵢ)² / Σ wᵢ²` with the sums over the converged
+samples that violate `v`. For an unweighted result this is the number of violations.
+
+This is what sets the precision of [`violation_probability`](@ref). With importance
+sampling a value far below the number of violating samples means a few of them dominate
+the estimate, so the shift missed part of the violation region. As a rule of thumb, an
+estimate based on fewer than about 30 effective samples is not reliable.
+"""
+function effective_sample_size(r::PPFResult, v::ViolationEvent)
+    y = weighted_samples(r, v)
+    total = sum(y)
+    if total == 0
+        return 0.0
+    end
+    return total^2 / sum(abs2, y)
+end

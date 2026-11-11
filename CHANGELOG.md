@@ -29,6 +29,9 @@ and this project adheres to [Semantic Versioning].
   OhMyThreads.jl `scheduler`, as keywords of `solve`.
 - `PPFResult` with diverged samples kept as `FailedSample`, and the statistics
   `mean`, `std`, `quantile` and `violation_probability`.
+- `DesignPointSampling` for rare `ViolationEvent`s. Samples in standard normal space around
+  a design point found by an HL-RF search.
+- `standard_error` and `effective_sample_size` to judge the precision of an estimate.
 - Compact one-line and tree displays for models, problems, results and backends.
 - Performance benchmarks in `benchmark/`, run with AirspeedVelocity.jl locally and on
   pull requests.
