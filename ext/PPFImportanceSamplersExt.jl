@@ -39,13 +39,17 @@ function CommonSolve.solve(
     d = germ_dim(prob.model)
     events = one_sided(method.event)
 
+    # 1. find a design point for each finite violation bound
     shift, n_search = design_points(prob, method, events, d)
+
+    # 2. AMIS around each design point
     proposal, n_adapt = adapted_proposals(prob, method, events, shift, rng; kwargs...)
     used = AdaptiveDesignPointSampling(
         method.event, method.n, method.rounds, method.round_size, method.defensive,
         shift, proposal, method.fd_step, method.maxiter, method.tol,
     )
 
+    # 3. IID samples from the adapted and defensive mixture
     bank = final_bank(shift, proposal, method.defensive)
     Z, logweights = draw_final(rng, bank, method.n)
     U = clamp!(normal_cdf.(Z), eps(), 1 - eps())
