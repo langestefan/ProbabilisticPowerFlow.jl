@@ -72,8 +72,7 @@ end
 
     text = tree(model)
     @test startswith(text, "UncertaintyModel\n├ germ variables: 2")
-    @test occursin("│ ├ l1: ", text)
-    @test occursin("μ=1.0, σ=0.1", text)
+    @test occursin("│ ├ l1: $(line(Normal(1.0, 0.1)))", text)
     @test occursin("│ ├ \"l1\" → Pd[1]", text)
     @test endswith(text, "└ dependence: GaussianCopula(d = 2)")
 end
