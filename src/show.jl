@@ -138,6 +138,16 @@ function Base.show(io::IO, m::DesignPointSampling)
     return nothing
 end
 
+function Base.show(io::IO, m::AdaptiveDesignPointSampling)
+    print(io, "AdaptiveDesignPointSampling(", m.event, ", n = ", m.n)
+    print(io, ", rounds = ", m.rounds, ", round_size = ", m.round_size)
+    if m.proposal !== nothing
+        print(io, ", fitted")
+    end
+    print(io, ")")
+    return nothing
+end
+
 result_type(r::PPFResult) = "PPFResult{$(nameof(typeof(r.method)))}"
 
 Base.show(io::IO, r::PPFResult) =

@@ -2,6 +2,7 @@
 Aqua = "4c88cf16-eb10-579e-8560-4a9242c79595"
 Copulas = "ae264745-0b69-425e-9d9d-cf662c5eec93"
 Distributions = "31c24e10-a181-5473-b8eb-7969acd0382f"
+ImportanceSamplers = "f51d20bd-8e2c-46f0-bdaa-6990265b9f1c"
 JET = "c3a54625-cd67-489e-a8e7-0a5a0ff4e31b"
 LinearAlgebra = "37e2e46d-f89d-539d-b4ee-838fcccc9c8e"
 NonlinearSolve = "8913a72c-1f9b-4ce2-8d82-65094dcecaec"
@@ -15,6 +16,7 @@ Test = "8dfed614-e22c-5e08-85e1-65c5234f0b40"
 TestItemRunner = "f8b46487-2199-4994-9208-9a1283c18c0a"
 
 [sources]
+ImportanceSamplers = {rev = "main", url = "https://github.com/JuliaBayes/ImportanceSamplers.jl"}
 PowerModels = {rev = "sciml-extension", url = "https://github.com/langestefan/PowerModels.jl"}
 ProbabilisticPowerFlow = {path = ".."}
 

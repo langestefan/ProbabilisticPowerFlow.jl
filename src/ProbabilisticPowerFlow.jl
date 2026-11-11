@@ -16,6 +16,7 @@ include("problem.jl")
 include("sampling.jl")
 include("samplers.jl")
 include("importance.jl")
+include("adaptive_importance.jl")
 include("result.jl")
 include("show.jl")
 
@@ -38,7 +39,8 @@ export to_physical, to_physical!
 
 # Problems, methods and results
 export PPFProblem, AbstractPPFMethod, solve
-export MonteCarlo, LatinHypercube, QuasiMC, DesignPointSampling
+export MonteCarlo, LatinHypercube, QuasiMC
+export DesignPointSampling, AdaptiveDesignPointSampling
 export PPFResult, FailedSample, n_converged, failure_rate
 export qoi_samples, violation_probability, standard_error, effective_sample_size
 

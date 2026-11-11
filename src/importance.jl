@@ -63,13 +63,8 @@ struct DesignPointSampling{E <: ViolationEvent} <: AbstractPPFMethod
             tol::Real,
         ) where {E <: ViolationEvent}
         check_positive("n", n)
-        check_positive("maxiter", maxiter)
-        if !(fd_step > 0) || !(tol > 0)
-            throw(ArgumentError("fd_step and tol must be positive, got $(fd_step) and $(tol)"))
-        end
-        if !isfinite(event.lo) && !isfinite(event.hi)
-            throw(ArgumentError("event $(event) has no finite bound, it can never occur"))
-        end
+        check_search(fd_step, maxiter, tol)
+        check_reachable(event)
         return new{E}(event, n, float_vector(shift), fd_step, maxiter, tol)
     end
 end
@@ -125,6 +120,21 @@ function CommonSolve.solve(
         r.n_solves + n_search,
         weights,
     )
+end
+
+function check_search(fd_step::Real, maxiter::Integer, tol::Real)
+    check_positive("maxiter", maxiter)
+    if !(fd_step > 0) || !(tol > 0)
+        throw(ArgumentError("fd_step and tol must be positive, got $(fd_step) and $(tol)"))
+    end
+    return nothing
+end
+
+function check_reachable(event::ViolationEvent)
+    if !isfinite(event.lo) && !isfinite(event.hi)
+        throw(ArgumentError("event $(event) has no finite bound, it can never occur"))
+    end
+    return nothing
 end
 
 float_vector(::Nothing) = nothing
