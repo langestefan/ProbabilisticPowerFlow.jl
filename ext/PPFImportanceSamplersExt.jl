@@ -203,8 +203,10 @@ function final_bank(shift, proposal, defensive::Float64)
     return ProposalBank(components, masses)
 end
 
-# plain importance sampling of φ from the bank. The target needs no power flow, so the
-# samples are solved afterwards in one call.
+# Draws samples from the bank with weights φ/q. Importance sampling estimates E_φ[f] with
+# f = 1{violation}: the target is the input distribution φ, and f is applied afterwards.
+# Whether a sample violates the event is known only after its power flow, so all samples
+# are solved afterwards in one call.
 function draw_final(rng::AbstractRNG, bank::ProposalBank, n::Int)
     function batch!(values, Z)
         for i in axes(Z, 2)
