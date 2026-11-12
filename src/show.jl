@@ -50,11 +50,20 @@ function Base.show(io::IO, info::SolveInfo)
     return nothing
 end
 
+Base.show(io::IO, q::Union{VoltageMagnitude, VoltageAngle}) =
+    print(io, nameof(typeof(q)), "(", q.bus, ")")
+
+Base.show(io::IO, q::Union{BranchActivePower, BranchReactivePower}) =
+    print(io, nameof(typeof(q)), "(", q.from, ", ", q.to, ")")
+
 Base.show(io::IO, v::ViolationEvent) =
     print(io, "ViolationEvent(", v.qoi, ", ", v.lo, ", ", v.hi, ")")
 
 Base.show(io::IO, v::GermVariable) =
     print(io, "GermVariable(", repr(v.id), ", ", v.dist, ")")
+
+Base.show(io::IO, ::IdentityTransform) = print(io, "IdentityTransform()")
+Base.show(io::IO, t::AffineTransform) = print(io, "AffineTransform(", t.a, ", ", t.b, ")")
 
 function Base.show(io::IO, a::Assignment)
     print(io, repr(a.variable), " → ", ref_label(a.target))

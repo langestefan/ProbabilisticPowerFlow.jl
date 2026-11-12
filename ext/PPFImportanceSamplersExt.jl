@@ -4,12 +4,13 @@ using CommonSolve: CommonSolve
 using ImportanceSamplers:
     ImportanceSamplers, AMIS, AMISRoundError, AllZeroWeightsError, FactorGaussian,
     LogTarget, ProposalBank, SphericalGaussian, current_proposal, importance_sample!,
-    prepare_sampler
+    prepare_sampler, proposal_scale_factor
 using LinearAlgebra: I, Symmetric, eigmin
 using ProbabilisticPowerFlow:
     ProbabilisticPowerFlow, AdaptiveDesignPointSampling, PPFProblem, PPFResult,
     ViolationEvent, check_event, design_point, germ_dim, normal_cdf, solve_samples, violates
 using Random: Random, AbstractRNG
+using Statistics: mean
 
 ProbabilisticPowerFlow.AdaptiveDesignPointSampling(
     event::ViolationEvent;
@@ -153,13 +154,13 @@ function adapt(
         rethrow()
     end
     q = current_proposal(sampler)
-    L = Matrix{Float64}(q.scale.factor)
+    L = Matrix{Float64}(proposal_scale_factor(q))
     if eigmin(Symmetric(L * L')) < COLLAPSE_EIGMIN
         @warn "the adapted proposal collapsed, sampling around the design point without " *
             "adaptation. Increase round_size."
         return unit_gaussian(z), solves[]
     end
-    return FactorGaussian(collect(Float64, q.location), L), solves[]
+    return FactorGaussian(collect(Float64, mean(q)), L), solves[]
 end
 
 unit_gaussian(z::Vector{Float64}) = FactorGaussian(copy(z), Matrix{Float64}(I, length(z), length(z)))
