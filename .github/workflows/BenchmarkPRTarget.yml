@@ -9,6 +9,7 @@ jobs:
   bench:
     runs-on: ubuntu-latest
     strategy:
+      fail-fast: false
       matrix:
         julia-version: ["1.13", "1"]
     steps:
