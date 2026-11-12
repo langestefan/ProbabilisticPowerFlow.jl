@@ -23,13 +23,17 @@ IID, so the final estimate has a valid standard error.
 The supplied `event`, or its quantity, must be one of the QoIs of the problem.
 
 ```julia
-using ImportanceSamplers
+# both packages export IdentityTransform, so load only the module name
+using ImportanceSamplers: ImportanceSamplers
 over = ViolationEvent(VoltageMagnitude(5), -Inf, 1.1)
 result = solve(prob, AdaptiveDesignPointSampling(over; n = 2000); rng = Xoshiro(1))
 violation_probability(result, over), standard_error(result, over)
 ```
 
 Stages 1 and 2 can be reused for new samples by calling `solve(prob, result.method)`.
+
+`examples/adaptive_importance.jl` compares this method with [`DesignPointSampling`](@ref)
+on a two-sided event.
 """
 struct AdaptiveDesignPointSampling{E <: ViolationEvent, P} <: AbstractPPFMethod
     event::E
