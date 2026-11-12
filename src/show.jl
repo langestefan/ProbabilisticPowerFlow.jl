@@ -50,11 +50,20 @@ function Base.show(io::IO, info::SolveInfo)
     return nothing
 end
 
+Base.show(io::IO, q::Union{VoltageMagnitude, VoltageAngle}) =
+    print(io, nameof(typeof(q)), "(", q.bus, ")")
+
+Base.show(io::IO, q::Union{BranchActivePower, BranchReactivePower}) =
+    print(io, nameof(typeof(q)), "(", q.from, ", ", q.to, ")")
+
 Base.show(io::IO, v::ViolationEvent) =
     print(io, "ViolationEvent(", v.qoi, ", ", v.lo, ", ", v.hi, ")")
 
 Base.show(io::IO, v::GermVariable) =
     print(io, "GermVariable(", repr(v.id), ", ", v.dist, ")")
+
+Base.show(io::IO, ::IdentityTransform) = print(io, "IdentityTransform()")
+Base.show(io::IO, t::AffineTransform) = print(io, "AffineTransform(", t.a, ", ", t.b, ")")
 
 function Base.show(io::IO, a::Assignment)
     print(io, repr(a.variable), " → ", ref_label(a.target))
@@ -129,6 +138,25 @@ Base.show(io::IO, m::LatinHypercube) = print(io, "LatinHypercube(n = ", m.n, ")"
 Base.show(io::IO, m::QuasiMC) =
     print(io, "QuasiMC(", nameof(typeof(m.sampler)), ", n = ", m.n, ")")
 
+function Base.show(io::IO, m::DesignPointSampling)
+    print(io, "DesignPointSampling(", m.event, ", n = ", m.n)
+    if m.shift !== nothing
+        print(io, ", β = ", round(norm2(m.shift), sigdigits = 4))
+    end
+    print(io, ")")
+    return nothing
+end
+
+function Base.show(io::IO, m::AdaptiveDesignPointSampling)
+    print(io, "AdaptiveDesignPointSampling(", m.event, ", n = ", m.n)
+    print(io, ", rounds = ", m.rounds, ", round_size = ", m.round_size)
+    if m.proposal !== nothing
+        print(io, ", fitted")
+    end
+    print(io, ")")
+    return nothing
+end
+
 result_type(r::PPFResult) = "PPFResult{$(nameof(typeof(r.method)))}"
 
 Base.show(io::IO, r::PPFResult) =
@@ -142,6 +170,7 @@ function Base.show(io::IO, ::MIME"text/plain", r::PPFResult)
             "method: $(r.method)",
             "samples: $(n_converged(r)) converged of $(r.n_samples), in $(r.n_solves) solves",
             failure_summary(r),
+            weight_summary(r)...,
             "quantities of interest: $(length(r.qois))" => listing(r.qois),
         ],
     )
@@ -154,4 +183,11 @@ function failure_summary(r::PPFResult)
     end
     percent = round(100 * failure_rate(r), digits = 1)
     return "failures: $(length(r.failures)), $(percent)% of samples"
+end
+
+function weight_summary(r::PPFResult)
+    if is_weighted(r)
+        return ["weights: importance weights"]
+    end
+    return String[]
 end

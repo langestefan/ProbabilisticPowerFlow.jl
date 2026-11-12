@@ -1,6 +1,7 @@
 [deps]
 Copulas = "ae264745-0b69-425e-9d9d-cf662c5eec93"
 Distributions = "31c24e10-a181-5473-b8eb-7969acd0382f"
+ImportanceSamplers = "f51d20bd-8e2c-46f0-bdaa-6990265b9f1c"
 LinearSolve = "7ed4a6bd-45f5-4d41-b270-4a48e9bafcae"
 NonlinearSolve = "8913a72c-1f9b-4ce2-8d82-65094dcecaec"
 PowerModels = "c36e90e8-916a-50a6-bd94-075b64ef4655"
@@ -9,5 +10,6 @@ Random = "9a3f8284-a2c9-5f02-9a11-845980a1fd5c"
 Statistics = "10745b16-79ce-11e8-11f9-7d13ad32a3b2"
 
 [sources]
+ImportanceSamplers = {rev = "dev", url = "https://github.com/JuliaBayes/ImportanceSamplers.jl"}
 PowerModels = {rev = "sciml-extension", url = "https://github.com/langestefan/PowerModels.jl"}
 ProbabilisticPowerFlow = {path = ".."}

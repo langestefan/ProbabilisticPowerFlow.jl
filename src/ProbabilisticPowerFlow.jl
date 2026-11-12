@@ -1,7 +1,7 @@
 module ProbabilisticPowerFlow
 
 using EnumX: @enumx
-using Distributions: UnivariateDistribution, quantile
+using Distributions: UnivariateDistribution, Normal, cdf, quantile
 using Copulas: IndependentCopula, inverse_rosenblatt, SklarDist
 using Statistics: Statistics, mean, std
 using Random: Random, AbstractRNG, randperm
@@ -15,6 +15,8 @@ include("uncertainty.jl")
 include("problem.jl")
 include("sampling.jl")
 include("samplers.jl")
+include("importance.jl")
+include("adaptive_importance.jl")
 include("result.jl")
 include("show.jl")
 
@@ -38,7 +40,8 @@ export to_physical, to_physical!
 # Problems, methods and results
 export PPFProblem, AbstractPPFMethod, solve
 export MonteCarlo, LatinHypercube, QuasiMC
+export DesignPointSampling, AdaptiveDesignPointSampling
 export PPFResult, FailedSample, n_converged, failure_rate
-export qoi_samples, violation_probability
+export qoi_samples, violation_probability, standard_error, effective_sample_size
 
 end

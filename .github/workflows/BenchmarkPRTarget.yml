@@ -9,8 +9,9 @@ jobs:
   bench:
     runs-on: ubuntu-latest
     strategy:
+      fail-fast: false
       matrix:
-        julia-version: ["1.12", "1"]
+        julia-version: ["1.13", "1"]
     steps:
       - uses: MilesCranmer/AirspeedVelocity.jl@action-v1
         with:
