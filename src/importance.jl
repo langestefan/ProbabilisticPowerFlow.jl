@@ -116,8 +116,6 @@ function CommonSolve.solve(
     )
 end
 
-iid_draws(::DesignPointSampling) = true
-
 function check_search(fd_step::Real, maxiter::Integer, tol::Real)
     check_positive("maxiter", maxiter)
     if !(fd_step > 0) || !(tol > 0)

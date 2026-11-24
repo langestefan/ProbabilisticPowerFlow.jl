@@ -74,5 +74,3 @@ struct AdaptiveDesignPointSampling{E <: ViolationEvent, P} <: AbstractPPFMethod
         )
     end
 end
-
-iid_draws(::AdaptiveDesignPointSampling) = true

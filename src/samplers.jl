@@ -32,8 +32,6 @@ function CommonSolve.solve(
     return solve_samples(prob, method, U; kwargs...)
 end
 
-iid_draws(::MonteCarlo) = true
-
 """
     LatinHypercube(; n = 1000)
 

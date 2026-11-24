@@ -205,6 +205,9 @@ prefix of the draws is itself a valid sample. Only then does [`running_estimate`
 mean anything. A new method that draws i.i.d. should add a method returning `true`.
 """
 iid_draws(::AbstractPPFMethod) = false
+iid_draws(::MonteCarlo) = true
+iid_draws(::DesignPointSampling) = true
+iid_draws(::AdaptiveDesignPointSampling) = true
 
 """
     running_estimate(r::PPFResult, q::AbstractQoI)
