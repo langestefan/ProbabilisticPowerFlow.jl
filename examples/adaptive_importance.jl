@@ -6,9 +6,9 @@
 # an undervoltage and low load an overvoltage, so the violations lie in two separate
 # regions of the input space.
 #
-# DesignPointSampling shifts its samples toward the nearest region only. It misses the
-# other one and reports a standard error that does not show it. AdaptiveDesignPointSampling
-# finds a design point for each bound and adapts a proposal around each.
+# Both methods find a design point for each bound. DesignPointSampling samples around each
+# with a unit normal. AdaptiveDesignPointSampling also adapts a proposal around each, which
+# fits the violation regions better and lowers the standard error.
 #
 # Run from the repository root:
 #
@@ -71,5 +71,5 @@ println("band [$(round(band.lo, digits = 4)), $(round(band.hi, digits = 4))] pu"
 report("DesignPointSampling", plain)
 report("AdaptiveDesignPointSampling", adaptive)
 report("Monte Carlo", mc)
-println("design point of DesignPointSampling: ", round.(plain.method.shift; digits = 2))
+println("design points of DesignPointSampling: ", [round.(s; digits = 2) for s in plain.method.shift])
 println("design points of AdaptiveDesignPointSampling: ", [round.(s; digits = 2) for s in adaptive.method.shift])

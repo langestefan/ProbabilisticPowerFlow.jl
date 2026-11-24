@@ -8,7 +8,8 @@ using ImportanceSamplers:
 using LinearAlgebra: I, Symmetric, eigmin
 using ProbabilisticPowerFlow:
     ProbabilisticPowerFlow, AdaptiveDesignPointSampling, PPFProblem, PPFResult,
-    ViolationEvent, check_event, design_point, germ_dim, normal_cdf, solve_samples, violates
+    ViolationEvent, check_count, check_event, design_points, normal_cdf, one_sided,
+    solve_samples, violates
 using Random: Random, AbstractRNG
 using Statistics: mean
 
@@ -37,11 +38,10 @@ function CommonSolve.solve(
         kwargs...,
     )
     check_event(prob, method.event)
-    d = germ_dim(prob.model)
     events = one_sided(method.event)
 
     # 1. find a design point for each finite violation bound
-    shift, n_search = design_points(prob, method, events, d)
+    shift, n_search = design_points(prob, method, events)
 
     # 2. AMIS around each design point
     proposal, n_adapt = adapted_proposals(prob, method, events, shift, rng; kwargs...)
@@ -65,45 +65,6 @@ function CommonSolve.solve(
         r.n_solves + n_search + n_adapt,
         exp.(logweights[r.sample_indices]),
     )
-end
-
-# one event per finite bound, each violated on one side only
-function one_sided(event::ViolationEvent)
-    events = typeof(event)[]
-    if isfinite(event.lo)
-        push!(events, ViolationEvent(event.qoi, event.lo, Inf))
-    end
-    if isfinite(event.hi)
-        push!(events, ViolationEvent(event.qoi, -Inf, event.hi))
-    end
-    return events
-end
-
-function design_points(prob::PPFProblem, method::AdaptiveDesignPointSampling, events, d::Int)
-    if method.shift === nothing
-        (; fd_step, maxiter, tol) = method
-        searches = [design_point(prob, e; fd_step, maxiter, tol) for e in events]
-        return [first(s) for s in searches], sum(last, searches)
-    end
-    check_count("shift", method.shift, events)
-    for z in method.shift
-        if length(z) != d
-            throw(DimensionMismatch("shift has length $(length(z)), expected germ_dim $(d)"))
-        end
-    end
-    return method.shift, 0
-end
-
-function check_count(name::AbstractString, values, events)
-    if length(values) != length(events)
-        throw(
-            ArgumentError(
-                "$(name) has $(length(values)) entries, expected one per finite bound of " *
-                    "the event, $(length(events))",
-            ),
-        )
-    end
-    return nothing
 end
 
 function adapted_proposals(

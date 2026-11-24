@@ -73,6 +73,3 @@ struct AdaptiveDesignPointSampling{E <: ViolationEvent, P} <: AbstractPPFMethod
         )
     end
 end
-
-float_vectors(::Nothing) = nothing
-float_vectors(v::AbstractVector{<:AbstractVector{<:Real}}) = [collect(Float64, s) for s in v]

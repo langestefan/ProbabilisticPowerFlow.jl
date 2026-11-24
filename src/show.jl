@@ -142,10 +142,19 @@ Base.show(io::IO, m::QuasiMC) =
 function Base.show(io::IO, m::DesignPointSampling)
     print(io, "DesignPointSampling(", m.event, ", n = ", m.n)
     if m.shift !== nothing
-        print(io, ", β = ", round(norm2(m.shift), sigdigits = 4))
+        print(io, ", β = ", reliability_index(m.shift))
     end
     print(io, ")")
     return nothing
+end
+
+# the distance of each design point from the origin, a single number for a one-sided event
+function reliability_index(shift::Vector{Vector{Float64}})
+    β = [round(norm2(z), sigdigits = 4) for z in shift]
+    if length(β) == 1
+        return only(β)
+    end
+    return β
 end
 
 function Base.show(io::IO, m::AdaptiveDesignPointSampling)
