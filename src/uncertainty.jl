@@ -51,6 +51,9 @@ multivariate distribution with uniform marginals. Its dimension must equal the n
 germ variables, because the two together are one joint distribution. The two-argument
 form defaults to an `IndependentCopula` of the right dimension.
 
+A single germ variable has no dependence to describe, and Copulas.jl has no copula of
+dimension one. Its dependence is `nothing`, which the two-argument form also picks.
+
 Internally we cache `varindex`, a static mapping from assignment order to germ variable
 order, so [`to_physical!`](@ref) reads an integer index instead of resolving a name once
 per assignment per sample.
@@ -102,7 +105,7 @@ struct UncertaintyModel{C, V <: AbstractVector{<:GermVariable}, A <: AbstractVec
             )
         end
 
-        d = length(dependence)
+        d = dependence_dim(dependence)
         if d != length(variables)
             throw(
                 ArgumentError(
@@ -122,7 +125,18 @@ end
 UncertaintyModel(
     variables::AbstractVector{<:GermVariable},
     assignments::AbstractVector{<:Assignment},
-) = UncertaintyModel(variables, assignments, IndependentCopula(length(variables)))
+) = UncertaintyModel(variables, assignments, independence(length(variables)))
+
+function independence(d::Int)
+    if d == 1
+        return nothing
+    end
+    return IndependentCopula(d)
+end
+
+# without a copula there is a single germ variable
+dependence_dim(::Nothing) = 1
+dependence_dim(copula) = length(copula)
 
 """
     germ_dim(m::UncertaintyModel)
@@ -163,7 +177,7 @@ function to_physical!(
     end
 
     # from independent uniforms to correlated uniforms
-    germ .= inverse_rosenblatt(m.dependence, u)
+    correlate!(germ, m.dependence, u)
 
     # inverse transform sampling: F⁻¹(u) has distribution F when u ~ U(0,1)
     # (quantile is the inverse CDF = F⁻¹)
@@ -179,6 +193,9 @@ function to_physical!(
 
     return x
 end
+
+correlate!(germ, ::Nothing, u) = copyto!(germ, u)
+correlate!(germ, copula, u) = germ .= inverse_rosenblatt(copula, u)
 
 """
     to_physical(m::UncertaintyModel, u)
@@ -196,6 +213,10 @@ to_physical(m::UncertaintyModel, u::AbstractVector{<:Real}) = to_physical!(
     germ_dist(m::UncertaintyModel)
 
 The joint distribution of the germ variables, as a
-[`SklarDist`](@extref Copulas Copulas.SklarDist).
+[`SklarDist`](@extref Copulas Copulas.SklarDist). A single germ variable without a copula
+gives a product distribution of length one.
 """
-germ_dist(m::UncertaintyModel) = SklarDist(m.dependence, Tuple(v.dist for v in m.variables))
+germ_dist(m::UncertaintyModel) = joint_dist(m.dependence, [v.dist for v in m.variables])
+
+joint_dist(::Nothing, dists) = product_distribution(dists)
+joint_dist(copula, dists) = SklarDist(copula, Tuple(dists))
