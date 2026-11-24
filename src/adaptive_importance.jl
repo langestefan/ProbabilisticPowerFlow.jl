@@ -13,7 +13,8 @@ It works in standard normal space like [`DesignPointSampling`](@ref), in three s
  2. Adapt a Gaussian proposal around each design point with AMIS from ImportanceSamplers.jl,
     in `rounds` rounds of `round_size` samples. A failed power flow counts as no violation.
  3. Draw `n` fresh samples from a mixture of the adapted proposals and `N(z*, I)`, and
-    weight them against that mixture. A share `defensive` of the samples comes from
+    weight them against that mixture. Each sample picks its component at random, so the
+    samples are i.i.d. from the mixture. A share `defensive` of the samples comes from
     `N(z*, I)`, which keeps the weights bounded where the adapted proposal is too narrow.
 
 Only stage 3 gives the final valid estimate. AMIS reuses samples from earlier rounds, so
@@ -73,3 +74,5 @@ struct AdaptiveDesignPointSampling{E <: ViolationEvent, P} <: AbstractPPFMethod
         )
     end
 end
+
+iid_draws(::AdaptiveDesignPointSampling) = true

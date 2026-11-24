@@ -112,8 +112,11 @@ function CommonSolve.solve(
         r.n_samples,
         r.n_solves + n_search,
         weights,
+        n_search,
     )
 end
+
+iid_draws(::DesignPointSampling) = true
 
 function check_search(fd_step::Real, maxiter::Integer, tol::Real)
     check_positive("maxiter", maxiter)
