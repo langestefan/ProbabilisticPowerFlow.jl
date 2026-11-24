@@ -105,7 +105,11 @@ struct UncertaintyModel{C, V <: AbstractVector{<:GermVariable}, A <: AbstractVec
             )
         end
 
-        d = dependence_dim(dependence)
+        # without a copula there is a single germ variable
+        d = 1
+        if dependence !== nothing
+            d = length(dependence)
+        end
         if d != length(variables)
             throw(
                 ArgumentError(
@@ -133,10 +137,6 @@ function independence(d::Int)
     end
     return IndependentCopula(d)
 end
-
-# without a copula there is a single germ variable
-dependence_dim(::Nothing) = 1
-dependence_dim(copula) = length(copula)
 
 """
     germ_dim(m::UncertaintyModel)

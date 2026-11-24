@@ -163,7 +163,7 @@ function design_points(prob::PPFProblem, method::AbstractPPFMethod, events)
     return method.shift, 0
 end
 
-function check_count(name::AbstractString, values, events)
+@noinline function check_count(name::AbstractString, values, events)
     if length(values) != length(events)
         throw(
             ArgumentError(

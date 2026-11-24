@@ -73,8 +73,13 @@ function Base.show(io::IO, a::Assignment)
     return nothing
 end
 
-dependence_label(::Nothing) = "none"
-dependence_label(c) = "$(nameof(typeof(c)))(d = $(length(c)))"
+function dependence_label(m::UncertaintyModel)
+    c = m.dependence
+    if c === nothing
+        return "none"
+    end
+    return "$(nameof(typeof(c)))(d = $(length(c)))"
+end
 
 Base.show(io::IO, m::UncertaintyModel) = print(
     io,
@@ -91,7 +96,7 @@ Base.show(io::IO, ::MIME"text/plain", m::UncertaintyModel) =
 model_entries(m::UncertaintyModel) = [
     "germ variables: $(germ_dim(m))" => listing(m.variables, v -> "$(v.id): $(v.dist)"),
     "assignments: $(length(m.assignments))" => listing(m.assignments),
-    "dependence: $(dependence_label(m.dependence))",
+    "dependence: $(dependence_label(m))",
 ]
 
 network_counts(data::AbstractDict) = [
