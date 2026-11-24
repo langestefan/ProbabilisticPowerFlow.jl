@@ -23,8 +23,8 @@ The output of a sampling method. Fields:
   - `failures`: the diverged samples, see [`FailedSample`](@ref).
   - `n_samples`: the total number of samples taken.
   - `n_solves`: the total number of deterministic solves attempted, failures included.
-  - `weights`: `nothing` for unweighted methods, otherwise the likelihood ratio of every
-    converged sample, in the column order of `samples`. See [`DesignPointSampling`](@ref).
+  - `weights`: `nothing` for unweighted methods. Otherwise `weights[i]` is the likelihood
+    ratio of draw `i`, failed or not. See [`DesignPointSampling`](@ref).
   - `n_setup_solves`: the solves spent before the first sample was drawn, such as a design
     point search. They are included in `n_solves`.
 
@@ -114,23 +114,41 @@ end
 """
     weighted_samples(r::PPFResult, q::AbstractQoI)
 
-Samples of `q` multiplied by importance weight.
+Converged samples of `q` multiplied by their importance weight.
 """
 function weighted_samples(r::PPFResult, q::AbstractQoI)
     y = qoi_samples(r, q)
     if is_weighted(r)
-        return y .* r.weights
+        return y .* view(r.weights, r.sample_indices)
     end
     return y
+end
+
+# The yᵢ taken as input by `mean` and `standard_error`. A weighted result uses wᵢ yᵢ for
+# every draw and 0 for a failure.
+function estimate_terms(r::PPFResult, q::AbstractQoI)
+    y = weighted_samples(r, q)
+    if !is_weighted(r)
+        return y
+    end
+    terms = zeros(r.n_samples)
+    terms[r.sample_indices] .= y
+    return terms
 end
 
 """
     mean(r::PPFResult, q::AbstractQoI)
 
-Estimated mean of `q`. For a weighted result this is the importance sampling estimate
-`(1/n) Σ wᵢ yᵢ` over the `n` converged samples.
+Estimated mean of `q`.
+
+An unweighted result averages `q` over the converged samples. This is the mean of `q` given
+that the power flow converges.
+
+A weighted result computes `(1/n) Σ wᵢ yᵢ` over all `n` draws, with `yᵢ = 0` for a failed
+draw. For a [`ViolationEvent`](@ref) this is the probability of a violation and a converged
+power flow. [`failure_probability`](@ref) is the most the failures can add.
 """
-Statistics.mean(r::PPFResult, q::AbstractQoI) = mean(weighted_samples(r, q))
+Statistics.mean(r::PPFResult, q::AbstractQoI) = mean(estimate_terms(r, q))
 
 function Statistics.std(r::PPFResult, q::AbstractQoI)
     check_unweighted(r, "std")
@@ -158,7 +176,12 @@ end
 """
     violation_probability(r::PPFResult, v::ViolationEvent)
 
-Mean estimated probability of the violation event.
+Estimated probability of the violation event, computed by
+[`mean`](@ref Statistics.mean(::PPFResult, ::AbstractQoI)). A weighted result counts a
+failed power flow as no violation. An unweighted result leaves it out.
+
+The true probability lies between `p` and `p + failure_probability(r)`, up to sampling
+error, where `p` is this estimate. See [`failure_probability`](@ref).
 """
 violation_probability(r::PPFResult, v::ViolationEvent) = mean(r, v)
 
@@ -166,15 +189,31 @@ violation_probability(r::PPFResult, v::ViolationEvent) = mean(r, v)
     standard_error(r::PPFResult, q::AbstractQoI)
 
 Standard error of [`mean`](@ref Statistics.mean(::PPFResult, ::AbstractQoI)) of `q`, the
-sample standard deviation of the (weighted) samples over `√n`. For a
+standard deviation of the yᵢ taken as input by `mean`, over `√n`. For a
 [`ViolationEvent`](@ref), `standard_error(r, v) / violation_probability(r, v)` is the
 coefficient of variation of the probability estimate, a common stopping criterion.
 
 Not meaningful for quasi-Monte Carlo point sets, whose points are not independent.
 """
 function standard_error(r::PPFResult, q::AbstractQoI)
-    y = weighted_samples(r, q)
+    y = estimate_terms(r, q)
     return std(y) / sqrt(length(y))
+end
+
+"""
+    failure_probability(r::PPFResult)
+
+Estimated probability that the power flow of a sample from the uncertainty model fails.
+
+An unweighted result returns [`failure_rate`](@ref). A weighted result returns `(1/n) Σ wᵢ`
+over the failed draws. Its draws come from the proposal, so its failure rate does not
+estimate this probability.
+"""
+function failure_probability(r::PPFResult)
+    if !is_weighted(r)
+        return failure_rate(r)
+    end
+    return sum(f -> r.weights[f.index], r.failures; init = 0.0) / r.n_samples
 end
 
 """
@@ -216,8 +255,9 @@ iid_draws(::AdaptiveDesignPointSampling) = true
 The estimate of `q` and its standard error after each draw of `r`. Entry `i` covers the
 first `i` draws. `solves[i]` counts all power flows up to that draw.
 
-A failed draw repeats the entry before it. The last entry equals `mean` and
-[`standard_error`](@ref).
+A failed draw adds `yᵢ = 0` to a weighted result and repeats the entry before it in an
+unweighted one, as in [`mean`](@ref Statistics.mean(::PPFResult, ::AbstractQoI)). The last
+entry equals `mean` and [`standard_error`](@ref).
 
 Throws an `ArgumentError` for methods that do not draw independently. See
 [`iid_draws`](@ref).
@@ -241,12 +281,17 @@ function running_estimate(r::PPFResult, q::AbstractQoI)
     ss = 0.0
     j = 1
     for i in 1:n
-        if j <= length(y) && r.sample_indices[j] == i
+        converged = j <= length(y) && r.sample_indices[j] == i
+        if converged || is_weighted(r)
+            term = 0.0
+            if converged
+                term = y[j]
+                j += 1
+            end
             count += 1
-            delta = y[j] - m
+            delta = term - m
             m += delta / count
-            ss += delta * (y[j] - m)
-            j += 1
+            ss += delta * (term - m)
         end
         if count >= 1
             estimate[i] = m

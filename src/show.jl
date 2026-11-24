@@ -197,7 +197,12 @@ function failure_summary(r::PPFResult)
         return "failures: none"
     end
     percent = round(100 * failure_rate(r), digits = 1)
-    return "failures: $(length(r.failures)), $(percent)% of samples"
+    summary = "failures: $(length(r.failures)), $(percent)% of samples"
+    if is_weighted(r)
+        p = round(failure_probability(r); sigdigits = 3)
+        summary *= ", failure probability $(p)"
+    end
+    return summary
 end
 
 function weight_summary(r::PPFResult)

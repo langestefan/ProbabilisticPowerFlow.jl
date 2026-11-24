@@ -36,9 +36,19 @@ and this project adheres to [Semantic Versioning].
   proposal around each design point with AMIS from ImportanceSamplers.jl.
 - `standard_error` and `effective_sample_size` to judge the precision of an estimate.
 - `running_estimate`, for convergence plots and accuracy against cost curves.
+- `failure_probability`, the estimated probability that a power flow fails. A weighted
+  result sums the weights of its failed draws. The true violation probability lies between
+  `violation_probability` and `violation_probability + failure_probability`.
 - Compact one-line and tree displays for models, problems, results and backends.
 - Performance benchmarks in `benchmark/`, run with AirspeedVelocity.jl locally and on
   pull requests.
+
+### Fixed
+
+- `mean`, `violation_probability` and `standard_error` of a weighted result divided by
+  the number of converged samples, which made them too high when power flows failed. They
+  now divide by the number of draws, with `yᵢ = 0` for a failed draw. `weights` now has one
+  entry per draw, failed or not.
 
 <!-- Links -->
 

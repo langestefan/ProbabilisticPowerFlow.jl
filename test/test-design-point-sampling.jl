@@ -76,6 +76,42 @@ end
     @test !occursin("weights", sprint(show, MIME"text/plain"(), plain))
 end
 
+@testitem "A failed draw of a weighted result counts as no violation" tags = [:unit, :fast] begin
+    using Statistics: std
+
+    struct NoMethod <: AbstractPPFMethod end
+    vm = VoltageMagnitude(2)
+    band = ViolationEvent(vm, -Inf, 1.05)
+    samples = [1.06 1.07]
+    w = [0.5, 4.0, 0.1]
+    failure = FailedSample(2, [0.5], [2.0], SolveInfo(false, -1, Inf))
+    r = PPFResult(NoMethod(), AbstractQoI[vm], samples, [1, 3], [failure], 3, 3, w)
+
+    @test violation_probability(r, band) ≈ (0.5 + 0.1) / 3
+    @test standard_error(r, band) ≈ std([0.5, 0.0, 0.1]) / sqrt(3)
+    @test failure_probability(r) ≈ 4.0 / 3
+    @test occursin("failure probability", sprint(show, MIME"text/plain"(), r))
+
+    plain = PPFResult(NoMethod(), AbstractQoI[vm], samples, [1, 3], [failure], 3, 3)
+    @test violation_probability(plain, band) == 1
+    @test failure_probability(plain) == failure_rate(plain)
+    @test !occursin("failure probability", sprint(show, MIME"text/plain"(), plain))
+end
+
+@testitem "Failures near the design point do not inflate the estimate" tags =
+    [:unit, :fast] setup = [LinearOracle] begin
+    event = ViolationEvent(ORACLE_Y, -Inf, 4.0)
+    # x1 - x2 is N(0, 2) and independent of aᵀx under both φ and the proposal. About a
+    # third of the draws fail, and P(violation and converged) = Φ(-4) Φ(0.5 / √2)
+    prob = oracle(event; fails = x -> x[1] - x[2] > 0.5)
+    r = solve(prob, DesignPointSampling(event; n = 4000); rng = Xoshiro(1))
+    p, se = violation_probability(r, event), standard_error(r, event)
+
+    @test 0.3 < failure_rate(r) < 0.42
+    @test abs(p - Φ(-4) * Φ(0.5 / sqrt(2))) < 4 * se
+    @test p + failure_probability(r) > Φ(-4)
+end
+
 @testitem "DesignPointSampling needs the event among the QoIs" tags =
     [:integration, :powermodels] setup = [PMCase5, ISCase5] begin
     prob = is_problem(pm_case5(), [VoltageAngle(5)])
