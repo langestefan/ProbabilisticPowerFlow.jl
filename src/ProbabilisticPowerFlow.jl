@@ -41,7 +41,7 @@ export to_physical, to_physical!
 export PPFProblem, AbstractPPFMethod, solve
 export MonteCarlo, LatinHypercube, QuasiMC
 export DesignPointSampling, AdaptiveDesignPointSampling
-export PPFResult, FailedSample, n_converged, failure_rate
+export PPFResult, FailedSample, n_converged, failure_rate, failure_probability
 export qoi_samples, violation_probability, standard_error, effective_sample_size
 export running_estimate
 

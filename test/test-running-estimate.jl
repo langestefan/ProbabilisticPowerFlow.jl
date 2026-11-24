@@ -16,6 +16,22 @@
     @test run.standard_error[end] ≈ standard_error(r, vm)
 end
 
+@testitem "running_estimate of a weighted result counts a failure as zero" tags =
+    [:unit, :fast] begin
+    struct NoMethod <: AbstractPPFMethod end
+    ProbabilisticPowerFlow.iid_draws(::NoMethod) = true
+
+    event = ViolationEvent(VoltageMagnitude(2), -Inf, 1.05)
+    failure = FailedSample(2, [0.5], [2.0], SolveInfo(false, -1, Inf))
+    w = [0.5, 4.0, 0.1]
+    r = PPFResult(NoMethod(), AbstractQoI[event.qoi], [1.06 1.07], [1, 3], [failure], 3, 3, w)
+    run = running_estimate(r, event)
+
+    @test run.estimate ≈ [0.5, 0.25, 0.2]
+    @test run.estimate[end] ≈ violation_probability(r, event)
+    @test run.standard_error[end] ≈ standard_error(r, event)
+end
+
 @testitem "running_estimate is NaN until a draw converges" tags = [:unit, :fast] begin
     vm = VoltageMagnitude(2)
     failure = FailedSample(1, [0.5], [2.0], SolveInfo(false, -1, Inf))

@@ -102,7 +102,7 @@ function CommonSolve.solve(
     U = clamp!(normal_cdf.(Z), eps(), 1 - eps())
     r = solve_samples(prob, used, U; kwargs...)
 
-    weights = [mixture_weight(shift, view(Z, :, i)) for i in r.sample_indices]
+    weights = [mixture_weight(shift, z) for z in eachcol(Z)]
     return PPFResult(
         used,
         r.qois,

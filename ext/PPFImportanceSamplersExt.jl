@@ -63,7 +63,7 @@ function CommonSolve.solve(
         r.failures,
         r.n_samples,
         r.n_solves + n_search + n_adapt,
-        exp.(logweights[r.sample_indices]),
+        exp.(logweights),
         n_search + n_adapt,
     )
 end
