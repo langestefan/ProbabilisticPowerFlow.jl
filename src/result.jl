@@ -25,6 +25,8 @@ The output of a sampling method. Fields:
   - `n_solves`: the total number of deterministic solves attempted, failures included.
   - `weights`: `nothing` for unweighted methods, otherwise the likelihood ratio of every
     converged sample, in the column order of `samples`. See [`DesignPointSampling`](@ref).
+  - `n_setup_solves`: the solves spent before the first sample was drawn, such as a design
+    point search. They are included in `n_solves`.
 
 Invariant: `n_converged(r) + length(r.failures) == r.n_samples`.
 """
@@ -37,6 +39,7 @@ struct PPFResult{M <: AbstractPPFMethod}
     n_samples::Int
     n_solves::Int
     weights::Union{Nothing, Vector{Float64}}
+    n_setup_solves::Int
 end
 
 PPFResult(
@@ -47,7 +50,8 @@ PPFResult(
     failures::Vector{FailedSample},
     n_samples::Int,
     n_solves::Int,
-) = PPFResult(method, qois, samples, sample_indices, failures, n_samples, n_solves, nothing)
+    weights::Union{Nothing, Vector{Float64}} = nothing,
+) = PPFResult(method, qois, samples, sample_indices, failures, n_samples, n_solves, weights, 0)
 
 """
     is_weighted(r::PPFResult)
@@ -191,4 +195,80 @@ function effective_sample_size(r::PPFResult, v::ViolationEvent)
         return 0.0
     end
     return total^2 / sum(abs2, y)
+end
+
+"""
+    iid_draws(method::AbstractPPFMethod)
+
+True when `method` draws its samples independently from one distribution, so that every
+prefix of the draws is itself a valid sample. Only then does [`running_estimate`](@ref)
+mean anything. A new method that draws i.i.d. should add a method returning `true`.
+"""
+iid_draws(::AbstractPPFMethod) = false
+iid_draws(::MonteCarlo) = true
+iid_draws(::DesignPointSampling) = true
+iid_draws(::AdaptiveDesignPointSampling) = true
+
+"""
+    running_estimate(r::PPFResult, q::AbstractQoI)
+        -> (; samples, solves, estimate, standard_error)
+
+The estimate of `q` and its standard error after each draw of `r`. Entry `i` covers the
+first `i` draws. `solves[i]` counts all power flows up to that draw.
+
+A failed draw repeats the entry before it. The last entry equals `mean` and
+[`standard_error`](@ref).
+
+Throws an `ArgumentError` for methods that do not draw independently. See
+[`iid_draws`](@ref).
+
+```julia
+result = solve(prob, DesignPointSampling(event; n = 2000); rng = Xoshiro(1))
+run = running_estimate(result, event)
+lines(run.solves, run.estimate)
+```
+"""
+function running_estimate(r::PPFResult, q::AbstractQoI)
+    check_iid(r.method)
+    y = weighted_samples(r, q)
+    n = r.n_samples
+    estimate = fill(NaN, n)
+    se = fill(NaN, n)
+
+    # Welford's update of the mean and the sum of squared deviations
+    count = 0
+    m = 0.0
+    ss = 0.0
+    j = 1
+    for i in 1:n
+        if j <= length(y) && r.sample_indices[j] == i
+            count += 1
+            delta = y[j] - m
+            m += delta / count
+            ss += delta * (y[j] - m)
+            j += 1
+        end
+        if count >= 1
+            estimate[i] = m
+        end
+        if count >= 2
+            se[i] = sqrt(ss / (count - 1) / count)
+        end
+    end
+
+    samples = collect(1:n)
+    solves = r.n_setup_solves .+ samples
+    return (; samples, solves, estimate, standard_error = se)
+end
+
+function check_iid(method::AbstractPPFMethod)
+    if !iid_draws(method)
+        throw(
+            ArgumentError(
+                "running_estimate needs independent draws, so that every prefix is a " *
+                    "valid sample. $(nameof(typeof(method))) does not draw independently.",
+            ),
+        )
+    end
+    return nothing
 end

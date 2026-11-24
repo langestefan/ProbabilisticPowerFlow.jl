@@ -43,5 +43,6 @@ export MonteCarlo, LatinHypercube, QuasiMC
 export DesignPointSampling, AdaptiveDesignPointSampling
 export PPFResult, FailedSample, n_converged, failure_rate
 export qoi_samples, violation_probability, standard_error, effective_sample_size
+export running_estimate
 
 end

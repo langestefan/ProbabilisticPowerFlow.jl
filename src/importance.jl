@@ -112,6 +112,7 @@ function CommonSolve.solve(
         r.n_samples,
         r.n_solves + n_search,
         weights,
+        n_search,
     )
 end
 

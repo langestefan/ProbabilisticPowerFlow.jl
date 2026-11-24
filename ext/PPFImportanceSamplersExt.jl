@@ -3,7 +3,7 @@ module PPFImportanceSamplersExt
 using CommonSolve: CommonSolve
 using ImportanceSamplers:
     ImportanceSamplers, AMIS, AMISRoundError, AllZeroWeightsError, FactorGaussian,
-    LogTarget, ProposalBank, SphericalGaussian, current_proposal, importance_sample!,
+    LogTarget, ProposalBank, RandomMixture, SphericalGaussian, current_proposal, importance_sample!,
     prepare_sampler, proposal_scale_factor
 using LinearAlgebra: I, Symmetric, eigmin
 using ProbabilisticPowerFlow:
@@ -64,6 +64,7 @@ function CommonSolve.solve(
         r.n_samples,
         r.n_solves + n_search + n_adapt,
         exp.(logweights[r.sample_indices]),
+        n_search + n_adapt,
     )
 end
 
@@ -168,7 +169,8 @@ end
 # Draws samples from the bank with weights φ/q. Importance sampling estimates E_φ[f] with
 # f = 1{violation}: the target is the input distribution φ, and f is applied afterwards.
 # Whether a sample violates the event is known only after its power flow, so all samples
-# are solved afterwards in one call.
+# are solved afterwards in one call. Each sample picks its component at random, so the
+# draws are i.i.d. and every prefix is a valid sample.
 function draw_final(rng::AbstractRNG, bank::ProposalBank, n::Int)
     function batch!(values, Z)
         for i in axes(Z, 2)
@@ -177,7 +179,7 @@ function draw_final(rng::AbstractRNG, bank::ProposalBank, n::Int)
         return nothing
     end
     target = LogTarget(logphi; batch = batch!)
-    alg = ImportanceSamplers.ImportanceSampling(bank; nsamples = n)
+    alg = ImportanceSamplers.ImportanceSampling(bank; nsamples = n, mis_scheme = RandomMixture())
     res = importance_sample!(prepare_sampler(rng, target, alg))
     return Matrix{Float64}(res.samples), Vector{Float64}(res.logweights)
 end
