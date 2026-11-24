@@ -34,17 +34,21 @@ end
     m = DesignPointSampling(over)
     @test m.n == 1000
     @test m.shift === nothing
-    @test DesignPointSampling(over; shift = [1, 2]).shift == [1.0, 2.0]
+    @test DesignPointSampling(over; shift = [[1, 2]]).shift == [[1.0, 2.0]]
 
     @test_throws ArgumentError DesignPointSampling(over; n = 0)
     @test_throws ArgumentError DesignPointSampling(over; maxiter = 0)
     @test_throws ArgumentError DesignPointSampling(over; fd_step = 0)
     @test_throws ArgumentError DesignPointSampling(over; tol = -1.0)
     @test_throws ArgumentError DesignPointSampling(ViolationEvent(VoltageMagnitude(1), -Inf, Inf))
+    @test_throws MethodError DesignPointSampling(over; shift = [1.0, 2.0])
 
     @test sprint(show, m) == "DesignPointSampling(ViolationEvent(VoltageMagnitude(1), -Inf, 1.1), n = 1000)"
-    @test sprint(show, DesignPointSampling(over; shift = [3.0, 4.0])) ==
+    @test sprint(show, DesignPointSampling(over; shift = [[3.0, 4.0]])) ==
         "DesignPointSampling(ViolationEvent(VoltageMagnitude(1), -Inf, 1.1), n = 1000, β = 5.0)"
+    band = ViolationEvent(VoltageMagnitude(1), 0.9, 1.1)
+    @test sprint(show, DesignPointSampling(band; shift = [[0.0, -2.0], [3.0, 4.0]])) ==
+        "DesignPointSampling(ViolationEvent(VoltageMagnitude(1), 0.9, 1.1), n = 1000, β = [2.0, 5.0])"
 end
 
 @testitem "Weighted results expose estimator diagnostics" tags = [:unit, :fast] begin
@@ -79,14 +83,16 @@ end
     @test_throws ArgumentError solve(prob, DesignPointSampling(over; n = 10))
 
     prob = is_problem(pm_case5(), [IS_VM])
-    @test_throws DimensionMismatch solve(prob, DesignPointSampling(over; n = 10, shift = [1.0]))
+    @test_throws DimensionMismatch solve(prob, DesignPointSampling(over; n = 10, shift = [[1.0]]))
+    # one point per finite bound
+    @test_throws ArgumentError solve(prob, DesignPointSampling(over; n = 10, shift = [zeros(3), zeros(3)]))
 end
 
 @testitem "A zero shift is plain Monte Carlo in normal space" tags =
     [:integration, :powermodels] setup = [PMCase5, ISCase5] begin
     prob = is_problem(pm_case5(), [IS_VM])
     event = ViolationEvent(IS_VM, -Inf, median_vm(prob))
-    r = solve(prob, DesignPointSampling(event; n = 400, shift = zeros(3)); rng = Xoshiro(3))
+    r = solve(prob, DesignPointSampling(event; n = 400, shift = [zeros(3)]); rng = Xoshiro(3))
 
     @test r.n_solves == 400
     @test all(==(1.0), r.weights)
@@ -179,4 +185,55 @@ end
     @test 0.001 < p_mc < 0.05
     @test abs(p_is - p_mc) < 4 * sqrt(se_is^2 + se_mc^2)
     @test se_is < se_mc
+end
+
+@testitem "DesignPointSampling keeps the plain shifted weights for one design point" tags =
+    [:unit, :fast] setup = [LinearOracle] begin
+    event = ViolationEvent(ORACLE_Y, -Inf, 4.0)
+    zstar = 4 .* ORACLE_A
+    r = solve(oracle(event), DesignPointSampling(event; n = 500, shift = [zstar]); rng = Xoshiro(3))
+
+    Z = randn(Xoshiro(3), ORACLE_D, 500) .+ zstar
+    @test r.n_solves == 500
+    @test qoi_samples(r, event) == Float64.(vec(ORACLE_A' * Z) .> 4.0)
+    @test r.weights ≈ exp.(0.5 * sum(abs2, zstar) .- vec(zstar' * Z)) rtol = 1.0e-12
+end
+
+@testitem "DesignPointSampling covers both sides of a two-sided event" tags =
+    [:unit, :fast] setup = [LinearOracle] begin
+    # the two sides differ in probability by a factor of 7
+    event = ViolationEvent(ORACLE_Y, -3.5, 4.0)
+    r = solve(oracle(event), DesignPointSampling(event; n = 4000); rng = Xoshiro(1))
+    p, se = violation_probability(r, event), standard_error(r, event)
+    exact = Φ(-3.5) + Φ(-4)
+
+    @test length(r.method.shift) == 2
+    @test r.method.shift[1] ≈ -3.5 .* ORACLE_A atol = 1.0e-3
+    @test r.method.shift[2] ≈ 4 .* ORACLE_A atol = 1.0e-3
+    @test abs(p - exact) < 4 * se
+    @test se / exact < 0.05
+    # about half of the samples around either design point violate
+    @test 0.4 < mean(qoi_samples(r, event)) < 0.6
+end
+
+@testitem "DesignPointSampling on a two-sided band matches its two sides" tags =
+    [:integration, :powermodels] setup = [PMCase5, ISCase5] begin
+    data = pm_case5()
+    v0 = median_vm(is_problem(data, [IS_VM]))
+    band = ViolationEvent(IS_VM, v0 - 0.006, v0 + 0.006)
+    below = ViolationEvent(IS_VM, v0 - 0.006, Inf)
+    above = ViolationEvent(IS_VM, -Inf, v0 + 0.006)
+    prob = is_problem(data, [IS_VM, band])
+
+    r = solve(prob, DesignPointSampling(band; n = 2000); rng = Xoshiro(1))
+    sides = [solve(prob, DesignPointSampling(e; n = 1000); rng = Xoshiro(1 + k)) for (k, e) in enumerate((below, above))]
+    p, se = violation_probability(r, band), standard_error(r, band)
+    q = violation_probability(sides[1], below) + violation_probability(sides[2], above)
+    se_q = sqrt(standard_error(sides[1], below)^2 + standard_error(sides[2], above)^2)
+
+    @test length(r.method.shift) == 2
+    @test abs(p - q) < 4 * sqrt(se^2 + se_q^2)
+    # each side is too large to miss without failing the test above
+    smaller = min(violation_probability(sides[1], below), violation_probability(sides[2], above))
+    @test smaller > 4 * sqrt(se^2 + se_q^2)
 end

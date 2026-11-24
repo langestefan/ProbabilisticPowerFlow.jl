@@ -15,32 +15,35 @@ sample `zᵢ` gets the likelihood ratio
 
 which [`violation_probability`](@ref), `mean` and [`standard_error`](@ref) apply.
 
-The design point is found with the improved HL-RF iteration on the limit state
-`g(z) = min(y - lo, hi - y)`. Here:
-- `y` is the event's quantity
-- `lo` and `hi` are the event's bounds, and
-- `g(z) < 0` means a violation occurred.
+An event with both bounds finite is violated below `lo` and above `hi`. These are two
+separate regions, so it gets a design point for each, `z₁*` and `z₂*`. Each sample is drawn
+around one of them, picked at random, and weighted against the equal mixture of both:
+
+    wᵢ = φ(zᵢ) / (½ φ(zᵢ - z₁*) + ½ φ(zᵢ - z₂*))
+
+The design point of a bound is found with the improved HL-RF iteration on its limit state,
+`g(z) = y - lo` or `g(z) = hi - y`. Here `y` is the event's quantity, and `g(z) < 0` means
+a violation occurred.
 
 The gradient of `g` is a forward finite difference in `z` with step `fd_step`,
 which costs `d + 1` power flows per iteration, plus one or more for the line search.
 
 See [`design_point`](@ref ProbabilisticPowerFlow.design_point) for details.
 
-Pass `shift` to skip the search and center the samples on a user supplied point. Regardless,
-the estimate will be unbiased for any shift, because `N(z*, I)` covers all of `ℝ^d`. The
-shift only changes the variance.
+Pass `shift` to skip the search and center the samples on user supplied points, one per
+finite bound of the event. Regardless, the estimate will be unbiased for any shift, because
+`N(z*, I)` covers all of `ℝ^d`. The shift only changes the variance.
 
-A two-sided event, or an event that can be reached in separate regions of the input
-space, gets a shift toward the nearest region only, so the other regions are sampled
-poorly. Check [`standard_error`](@ref) and [`effective_sample_size`](@ref) to see how
-well the shift worked.
+A bound that is violated in separate regions of the input space gets a shift toward the
+nearest region only, so the other regions are sampled poorly. [`standard_error`](@ref)
+does not show this, because the missed regions contribute almost no samples.
 
 The supplied `event`, or its quantity, must be one of the QoIs of the problem.
 
 ```julia
-over = ViolationEvent(VoltageMagnitude(5), -Inf, 1.1)
-result = solve(prob, DesignPointSampling(over; n = 2000); rng = Xoshiro(1))
-violation_probability(result, over), standard_error(result, over)
+band = ViolationEvent(VoltageMagnitude(5), 0.9, 1.1)
+result = solve(prob, DesignPointSampling(band; n = 2000); rng = Xoshiro(1))
+violation_probability(result, band), standard_error(result, band)
 ```
 
 You can run `solve(prob, result.method)` to sample again with the same design point,
@@ -49,7 +52,7 @@ without having to repeat the search.
 struct DesignPointSampling{E <: ViolationEvent} <: AbstractPPFMethod
     event::E
     n::Int
-    shift::Union{Nothing, Vector{Float64}}
+    shift::Union{Nothing, Vector{Vector{Float64}}}
     fd_step::Float64
     maxiter::Int
     tol::Float64
@@ -57,7 +60,7 @@ struct DesignPointSampling{E <: ViolationEvent} <: AbstractPPFMethod
     function DesignPointSampling(
             event::E,
             n::Integer,
-            shift::Union{Nothing, AbstractVector{<:Real}},
+            shift::Union{Nothing, AbstractVector{<:AbstractVector{<:Real}}},
             fd_step::Real,
             maxiter::Integer,
             tol::Real,
@@ -65,7 +68,7 @@ struct DesignPointSampling{E <: ViolationEvent} <: AbstractPPFMethod
         check_positive("n", n)
         check_search(fd_step, maxiter, tol)
         check_reachable(event)
-        return new{E}(event, n, float_vector(shift), fd_step, maxiter, tol)
+        return new{E}(event, n, float_vectors(shift), fd_step, maxiter, tol)
     end
 end
 
@@ -85,31 +88,21 @@ function CommonSolve.solve(
         kwargs...,
     )
     check_event(prob, method.event)
-    d = germ_dim(prob.model)
-
-    if method.shift === nothing
-        (; event, fd_step, maxiter, tol) = method
-        zstar, n_search = design_point(prob, event; fd_step, maxiter, tol)
-    else
-        if length(method.shift) != d
-            throw(
-                DimensionMismatch(
-                    "shift has length $(length(method.shift)), expected germ_dim $(d)",
-                ),
-            )
-        end
-        zstar, n_search = method.shift, 0
-    end
+    shift, n_search = design_points(prob, method, one_sided(method.event))
     used = DesignPointSampling(
-        method.event, method.n, zstar, method.fd_step, method.maxiter, method.tol,
+        method.event, method.n, shift, method.fd_step, method.maxiter, method.tol,
     )
 
-    Z = randn(rng, d, method.n) .+ zstar
+    # each sample is drawn around one design point, picked at random
+    Z = randn(rng, germ_dim(prob.model), method.n)
+    picks = rand(rng, eachindex(shift), method.n)
+    for i in axes(Z, 2)
+        view(Z, :, i) .+= shift[picks[i]]
+    end
     U = clamp!(normal_cdf.(Z), eps(), 1 - eps())
     r = solve_samples(prob, used, U; kwargs...)
 
-    half = 0.5 * dotp(zstar, zstar)
-    weights = [exp(half - dotp(zstar, view(Z, :, i))) for i in r.sample_indices]
+    weights = [mixture_weight(shift, view(Z, :, i)) for i in r.sample_indices]
     return PPFResult(
         used,
         r.qois,
@@ -137,8 +130,59 @@ function check_reachable(event::ViolationEvent)
     return nothing
 end
 
-float_vector(::Nothing) = nothing
-float_vector(v::AbstractVector{<:Real}) = collect(Float64, v)
+float_vectors(::Nothing) = nothing
+float_vectors(v::AbstractVector{<:AbstractVector{<:Real}}) = [collect(Float64, s) for s in v]
+
+# one event per finite bound, each violated on one side only
+function one_sided(event::ViolationEvent)
+    events = typeof(event)[]
+    if isfinite(event.lo)
+        push!(events, ViolationEvent(event.qoi, event.lo, Inf))
+    end
+    if isfinite(event.hi)
+        push!(events, ViolationEvent(event.qoi, -Inf, event.hi))
+    end
+    return events
+end
+
+# One design point per event in `events`, taken from `method.shift` when it is given and
+# found with `design_point` otherwise. Returns the points and the power flows spent.
+function design_points(prob::PPFProblem, method::AbstractPPFMethod, events)
+    if method.shift === nothing
+        (; fd_step, maxiter, tol) = method
+        searches = [design_point(prob, e; fd_step, maxiter, tol) for e in events]
+        return [first(s) for s in searches], sum(last, searches)
+    end
+    check_count("shift", method.shift, events)
+    d = germ_dim(prob.model)
+    for z in method.shift
+        if length(z) != d
+            throw(DimensionMismatch("shift has length $(length(z)), expected germ_dim $(d)"))
+        end
+    end
+    return method.shift, 0
+end
+
+@noinline function check_count(name::AbstractString, values, events)
+    if length(values) != length(events)
+        throw(
+            ArgumentError(
+                "$(name) has $(length(values)) entries, expected one per finite bound of " *
+                    "the event, $(length(events))",
+            ),
+        )
+    end
+    return nothing
+end
+
+# The likelihood ratio φ(z) / q(z), where q is the equal mixture of N(zⱼ*, I) over the
+# design points in `shift`. With one design point it is exp(‖z*‖² / 2 - z*ᵀ z).
+function mixture_weight(shift::Vector{Vector{Float64}}, z::AbstractVector)
+    # log(φ(z - zⱼ*) / φ(z)) for each design point
+    a = [dotp(s, z) - 0.5 * dotp(s, s) for s in shift]
+    m = maximum(a)
+    return length(shift) * exp(-m) / sum(x -> exp(x - m), a)
+end
 
 normal_cdf(z::Real) = cdf(Normal(), z)
 

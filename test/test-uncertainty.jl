@@ -49,6 +49,20 @@ end
     @test length(m.dependence) == germ_dim(m)
 end
 
+@testitem "A single germ variable needs no copula" tags = [:unit, :fast] begin
+    using Distributions
+
+    dist = Normal(1.0, 0.1)
+    m = UncertaintyModel([GermVariable("a", dist)], [Assignment("a", ComponentRef(ComponentField.Pd, 1))])
+
+    @test m.dependence === nothing
+    @test germ_dim(m) == 1
+    @test to_physical(m, [0.3]) ≈ [quantile(dist, 0.3)]
+    @test length(germ_dist(m)) == 1
+    @test length(rand(germ_dist(m))) == 1
+    @test endswith(sprint(show, MIME"text/plain"(), m), "└ dependence: none")
+end
+
 @testitem "Homogeneous marginals keep a concrete element type" tags = [:unit, :fast] begin
     using Distributions
 

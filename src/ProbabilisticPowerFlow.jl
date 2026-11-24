@@ -1,7 +1,7 @@
 module ProbabilisticPowerFlow
 
 using EnumX: @enumx
-using Distributions: UnivariateDistribution, Normal, cdf, quantile
+using Distributions: UnivariateDistribution, Normal, cdf, product_distribution, quantile
 using Copulas: IndependentCopula, inverse_rosenblatt, SklarDist
 using Statistics: Statistics, mean, std
 using Random: Random, AbstractRNG, randperm

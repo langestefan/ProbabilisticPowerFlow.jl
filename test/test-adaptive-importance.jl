@@ -204,5 +204,5 @@ end
     @test abs(p - q) < 4 * sqrt(se^2 + se_q^2)
     # the adapted proposal fits the violation region better than N(z*, I)
     @test se_q < se
-    @test adapted.method.shift[1] ≈ plain.method.shift atol = 1.0e-2
+    @test adapted.method.shift ≈ plain.method.shift atol = 1.0e-2
 end
