@@ -86,7 +86,7 @@ end
 """
     qoi_samples(r::PPFResult, q::AbstractQoI)
 
-The converged samples of `q`, in the order they were sampled.
+Converged samples of `q` in the order they were sampled.
 """
 qoi_samples(r::PPFResult, q::AbstractQoI) = view(r.samples, qoi_index(r, q), :)
 
@@ -110,8 +110,7 @@ end
 """
     weighted_samples(r::PPFResult, q::AbstractQoI)
 
-The samples of `q`, each multiplied by its importance weight. Their plain mean is the
-importance sampling estimate of the mean of `q`.
+Samples of `q` multiplied by importance weight.
 """
 function weighted_samples(r::PPFResult, q::AbstractQoI)
     y = qoi_samples(r, q)
